@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Search } from "lucide-react";
 import { Item } from "../types/pos";
-import { usePOSStore } from "../store/posStore";
+import { usePOSStore } from "../hooks/Stores/usePOSStore";
 
 interface ItemListProps {
   items: Item[];

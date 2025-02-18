@@ -1,7 +1,7 @@
 import React from "react";
 import { useProducts } from "../hooks/fetchers/useProducts";
 import { ItemList } from "../components/ItemList";
-import { Cart } from "../components/Cart";
+import { Cart } from "../components/cart/Cart";
 import { CustomerSelector } from "../components/CustomerSelector";
 
 export function POSScreen() {

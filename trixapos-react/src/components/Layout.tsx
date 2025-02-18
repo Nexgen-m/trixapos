@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
-import { Store, Menu, ChevronDown, Clock } from 'lucide-react';
-import { db } from '../lib/frappe';
+import React, { useState, useEffect } from "react";
+import { Outlet } from "react-router-dom";
+import { Store, Menu, ChevronDown, Clock } from "lucide-react";
+import { db } from "../lib/frappe";
 
 interface CompanyInfo {
   name: string;
@@ -11,7 +11,7 @@ interface CompanyInfo {
 export function Layout() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-  const [username, setUsername] = useState<string>('');
+  const [username, setUsername] = useState<string>("");
   const [categories, setCategories] = useState<string[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -26,19 +26,22 @@ export function Layout() {
   useEffect(() => {
     const loadCompanyInfo = async () => {
       try {
-        const company = await db.getDoc('Company', 'TrixaPOS');
+        const company = await db.getDoc("Company", "TrixaPOS");
         setCompanyInfo(company as CompanyInfo);
-        
-        const user = await db.getDoc('User', localStorage.getItem('user') || '');
+
+        const user = await db.getDoc(
+          "User",
+          localStorage.getItem("user") || ""
+        );
         setUsername(user.full_name || user.name);
 
-        const itemGroups = await db.getDocList('Item Group', {
-          fields: ['name'],
-          filters: [['is_group', '=', 0]],
+        const itemGroups = await db.getDocList("Item Group", {
+          fields: ["name"],
+          filters: [["is_group", "=", 0]],
         });
-        setCategories(itemGroups.map(group => group.name));
+        setCategories(itemGroups.map((group) => group.name));
       } catch (error) {
-        console.error('Error loading company info:', error);
+        console.error("Error loading company info:", error);
       }
     };
 
@@ -46,20 +49,26 @@ export function Layout() {
   }, []);
 
   const formattedTime = currentTime.toLocaleTimeString();
-  const formattedDate = currentTime.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+  const formattedDate = currentTime.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Categories Sidebar */}
-      <div className={`bg-gray-800 transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-0'}`}>
+      <div
+        className={`bg-gray-800 transition-all duration-300 ${
+          isSidebarOpen ? "w-64" : "w-0"
+        }`}
+      >
         {isSidebarOpen && (
           <div className="p-4">
-            <h2 className="text-lg font-semibold text-gray-200 mb-4">Categories</h2>
+            <h2 className="text-lg font-semibold text-gray-200 mb-4">
+              Categories
+            </h2>
             <nav className="space-y-2">
               {categories.map((category) => (
                 <button
@@ -112,10 +121,12 @@ export function Layout() {
                   <Store className="h-8 w-8 text-blue-600" />
                   <div>
                     <h1 className="text-2xl font-bold text-gray-900">
-                      {companyInfo?.name || 'TrixaPOS'}
+                      {companyInfo?.name || "TrixaPOS"}
                     </h1>
                     {companyInfo?.branch && (
-                      <p className="text-sm text-blue-600">Branch: {companyInfo.branch}</p>
+                      <p className="text-sm text-blue-600">
+                        Branch: {companyInfo.branch}
+                      </p>
                     )}
                   </div>
                 </div>

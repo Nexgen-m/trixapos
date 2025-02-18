@@ -1,12 +1,12 @@
 import React from "react";
 import { User } from "lucide-react";
-import { usePOSStore } from "../store/posStore";
+import { usePOSStore } from "../hooks/Stores/usePOSStore"; // Ensure this path is correct or update it to the correct path
 import { useCustomers } from "../hooks/fetchers/useCustomers";
 
 export function CustomerSelector() {
   const { customer, setCustomer } = usePOSStore();
   const { data: customers, isLoading, error } = useCustomers();
-
+  
   return (
     <div className="p-4 border-b border-gray-200 bg-gray-800">
       <div className="flex items-center gap-2 mb-4">

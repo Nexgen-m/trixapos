@@ -2,7 +2,18 @@ import React from "react";
 import { useCustomers } from "../hooks/fetchers/useCustomers";
 import { User } from "lucide-react";
 
-export function CustomerSelector({ setCustomer, customer }) {
+// Define the expected type for a customer
+interface Customer {
+  id: string;
+  name: string;
+}
+
+interface CustomerSelectorProps {
+  setCustomer: (customer: Customer | null) => void;
+  customer: Customer | null;
+}
+
+export function CustomerSelector({ setCustomer, customer }: CustomerSelectorProps) {
   const { data: customers, isLoading, error } = useCustomers();
 
   return (
@@ -16,16 +27,16 @@ export function CustomerSelector({ setCustomer, customer }) {
         ) : (
           <select
             className="flex-1 p-2 border border-gray-700 rounded-md bg-white text-gray-900"
-            value={customer?.name || ""}
+            value={customer?.id || ""}
             onChange={(e) => {
-              const selected = customers?.find((c) => c.name === e.target.value);
+              const selected = customers?.find((c) => c.id === e.target.value);
               setCustomer(selected || null);
             }}
           >
             <option value="">Select Customer</option>
             {customers?.map((c) => (
-              <option key={c.name} value={c.name}>
-                {c.customer_name}
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </select>

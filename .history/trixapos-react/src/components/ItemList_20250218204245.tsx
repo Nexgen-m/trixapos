@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Search } from "lucide-react";
 import { useProducts } from "../hooks/fetchers/useProducts";
-import { usePOSStore } from "../hooks/Stores/usePOSStore";
+import { usePOSStore } from "../hooks/stores/usePOSStore";
 
 export function ItemList() {
   const { data: items = [], isLoading, error } = useProducts();

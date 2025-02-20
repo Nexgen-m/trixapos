@@ -1,5 +1,6 @@
 // Define an interface for an Item
 export interface Item {
+  item_group: string;
   name: string;
   item_name: string;
   item_code: string;

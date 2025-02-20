@@ -1,22 +1,21 @@
-import { db } from "../../lib/frappe";
+import { call, db } from "../../lib/frappe"; // Using frappe-js-sdk
 import { Item } from "../../types/pos";
 
-
 /**
- * Fetch customers from Frappe API
+ * ✅ Fetch customers from Frappe API using frappe-js-sdk
  */
-export async function fetchCustomers() {
+export async function fetchCustomers(searchTerm: string = "", limit: number = 50) {
   try {
-    const customers = await db.getDocList("Customer", {
-      fields: ["name", "customer_name"],
-      limit: 50,
+    const response = await call.get("trixapos.api.customer_api.get_customers", {
+      search_term: searchTerm,
+      limit,
     });
 
-    if (!Array.isArray(customers)) {
+    if (!response || !response.message || !Array.isArray(response.message.customers)) {
       throw new Error("Invalid API response format");
     }
 
-    return customers;
+    return response.message.customers;
   } catch (error) {
     console.error("Error fetching customers:", error);
     throw new Error("Failed to load customers.");
@@ -24,34 +23,38 @@ export async function fetchCustomers() {
 }
 
 /**
- * Fetch products from Frappe API
+ * ✅ Fetch products from Frappe API (Custom API) with pagination, search, and category filter
  */
-
 export async function fetchProducts(
-page: number, category: string): Promise<{ items: Item[]; nextPage: number | null }> {
+  page: number = 1,
+  category: string = "",
+  searchTerm: string = "",
+  pageSize: number = 50
+): Promise<{ items: Item[]; nextPage: number | null }> {
   try {
-    const response = await fetch(`/api/method/nexapos.api.item_api.get_items?page=${page}`);
+    // API Call
+    const response = await call.get("trixapos.api.item_api.get_items", {
+      page,
+      page_size: pageSize,
+      category,
+      search_term: searchTerm,
+    });
 
-    if (!response.ok) {
-      throw new Error(`Server error: ${response.status}`);
+    // ✅ Debugging: Log the raw API response
+    console.log("API Response:", response);
+
+    // ✅ Validate API structure
+    if (!response || !response.message || !Array.isArray(response.message.items)) {
+      throw new Error("❌ Invalid response from Product API");
     }
 
-    const data = await response.json();
+    // ✅ Extract Items and Next Page
+    const data: Item[] = response.message.items || [];
+    const nextPage: number | null = response.message.next_page ?? null;
 
-    // 🛠 Log the response for debugging
-    console.log("API Response:", data);
-
-    // ✅ Fix: `message` itself is an array, not an object
-    if (!Array.isArray(data.message)) {
-      throw new Error("Invalid API response format: expected an array");
-    }
-
-    return {
-      items: data.message, // ✅ Directly use `message` as the items array
-      nextPage: null, // 🚨 API doesn't provide `nextPage`, assuming null
-    };
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    return { items: [], nextPage: null }; // ✅ Ensure safe fallback
+    return { items: data, nextPage };
+  } catch (error: any) {
+    console.error("❌ Error fetching products:", error.message || error);
+    return { items: [], nextPage: null };
   }
 }

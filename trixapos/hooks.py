@@ -5,6 +5,16 @@ app_description = "Trixapos"
 app_email = "devteam@nxgensolutions.com"
 app_license = "mit"
 
+fixtures = [
+    {
+        "doctype": "Custom Field",
+    },
+    {
+        "doctype": "Custom Script",
+    },
+]
+
+
 # Apps
 # ------------------
 

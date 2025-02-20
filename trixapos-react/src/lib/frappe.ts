@@ -1,7 +1,9 @@
 import { FrappeApp } from 'frappe-js-sdk';
 
-const frappe = new FrappeApp();
+// Initialize FrappeApp with the backend URL
+const frappe = new FrappeApp(import.meta.env.VITE_FRAPPE_BASE_URL);
 
-export const db = frappe.db();
-export const auth = frappe.auth();
-export const call = frappe.call();
+// Exporting Frappe SDK methods for global use
+export const db = frappe.db();       // For direct DB operations
+export const auth = frappe.auth();   // For authentication operations
+export const call = frappe.call();   // For calling custom Frappe methods

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
-import { Store, Menu, ChevronDown, Clock } from "lucide-react";
-import { db } from "../lib/frappe";
+import { Store, ChevronDown, Clock, Menu } from "lucide-react";
+import { db } from "../lib/frappe"; // Assuming `db` is your data fetching utility
 
 interface CompanyInfo {
   name: string;
@@ -29,10 +29,7 @@ export function Layout() {
         const company = await db.getDoc("Company", "TrixaPOS");
         setCompanyInfo(company as CompanyInfo);
 
-        const user = await db.getDoc(
-          "User",
-          localStorage.getItem("user") || ""
-        );
+        const user = await db.getDoc("User", localStorage.getItem("user") || "");
         setUsername(user.full_name || user.name);
 
         const itemGroups = await db.getDocList("Item Group", {
@@ -57,18 +54,15 @@ export function Layout() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Categories Sidebar */}
+    <div className="flex flex-col h-screen">
+      {/* Sidebar */}
       <div
-        className={`bg-gray-800 transition-all duration-300 ${
-          isSidebarOpen ? "w-64" : "w-0"
-        }`}
+        className={`bg-gray-800 transition-all duration-300 ${isSidebarOpen ? "w-64" : "w-0"}`}
+        style={{ height: "100vh" }}
       >
         {isSidebarOpen && (
           <div className="p-4">
-            <h2 className="text-lg font-semibold text-gray-200 mb-4">
-              Categories
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-200 mb-4">Categories</h2>
             <nav className="space-y-2">
               {categories.map((category) => (
                 <button
@@ -83,10 +77,9 @@ export function Layout() {
         )}
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
         <header>
-          {/* Top Bar */}
           <div className="bg-blue-600">
             <div className="mx-auto px-4 py-2 sm:px-6 lg:px-8 flex items-center justify-between text-sm text-white">
               <div className="flex items-center gap-4">
@@ -124,9 +117,7 @@ export function Layout() {
                       {companyInfo?.name || "TrixaPOS"}
                     </h1>
                     {companyInfo?.branch && (
-                      <p className="text-sm text-blue-600">
-                        Branch: {companyInfo.branch}
-                      </p>
+                      <p className="text-sm text-blue-600">Branch: {companyInfo.branch}</p>
                     )}
                   </div>
                 </div>
@@ -141,9 +132,11 @@ export function Layout() {
           </div>
         </header>
 
-        <main className="flex-1 bg-gray-50">
-          <div className="mx-auto py-6 sm:px-6 lg:px-8">
-            <Outlet />
+        <main className="flex-1 bg-gray-50 overflow-hidden">
+          <div className="mx-auto py-6 sm:px-6 lg:px-8 flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-auto">
+              <Outlet />
+            </div>
           </div>
         </main>
       </div>

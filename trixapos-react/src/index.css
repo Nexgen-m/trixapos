@@ -1,3 +1,34 @@
+/* Add this block towards the top of your index.css */
+html, body, #root {
+  height: 100%; /* Ensure full height */
+  margin: 0; /* Remove default margin */
+  padding: 0; /* Remove default padding */
+  overflow: hidden; /* Prevent the root page from scrolling */
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Ensure the POS screen fits well on the page */
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+.main-container {
+  display: flex;
+  flex-direction: row;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.flex-content {
+  flex-grow: 1;
+  overflow: auto;
+  height: 100%;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

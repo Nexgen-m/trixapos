@@ -1,30 +1,34 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CustomerSearch } from './CustomerSearch';
 import { useCustomers } from '../hooks/fetchers/useCustomers';
 
 interface Customer {
-  id: number;
   name: string;
-  email: string;
+  customer_name: string;
+  territory?: string;
+  customer_group?: string;
 }
 
 export function CustomerSelector() {
-  const { data: customers = [], isLoading, error } = useCustomers();
   const [search, setSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
-  // Filter customers based on the search term
-  const filteredCustomers = customers.filter((customer) =>
-    customer.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const { data: customers = [], isLoading, error, refetch } = useCustomers(search);
+
+  // Refetch customers when search term changes
+  useEffect(() => {
+    if (search.trim()) {
+      refetch();
+    }
+  }, [search, refetch]);
 
   return (
     <div className="w-full max-w-md mx-auto">
       <CustomerSearch
         search={search}
         selectedCustomer={selectedCustomer}
-        filteredCustomers={filteredCustomers}
+        filteredCustomers={customers}
         isOpen={isOpen}
         onSearch={(value) => setSearch(value)}
         onSelect={(customer) => {

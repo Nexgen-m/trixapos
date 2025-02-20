@@ -253,4 +253,4 @@ fixtures = [
 # }
 
 
-website_route_rules = [{'from_route': '/trixapos-react/<path:app_path>', 'to_route': 'trixapos-react'},]
+website_route_rules = [{'from_route': '/trixapos/<path:app_path>', 'to_route': 'trixapos'},]

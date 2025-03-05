@@ -59,8 +59,8 @@ export function CustomerSearch({
       )}
 
       {isOpen && (
-        <div className="absolute w-full mt-2 bg-white border rounded-md shadow-lg max-h-64 overflow-y-auto z-10">
-          {filteredCustomers.slice(0, 10).length > 0 ? (
+        <div className="absolute w-full mt-2 bg-white border rounded-md shadow-lg max-h-64 overflow-y-auto z-[9999]">
+        {filteredCustomers.slice(0, 10).length > 0 ? (
             filteredCustomers.slice(0, 10).map((customer) => (
               <button
                 key={customer.name}

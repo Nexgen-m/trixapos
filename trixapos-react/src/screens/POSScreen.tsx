@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { ItemList } from "../components/ItemList";
 import { ItemSearch } from "../components/ItemSearch";
-import { Cart } from "../components/cart/Cart";
 import { CustomerSelector } from "../components/CustomerSelector";
 
 export function POSScreen() {
@@ -16,9 +15,9 @@ export function POSScreen() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="h-full flex flex-col">
       {/* Search Bar and Customer Selector */}
-      <div className="flex gap-4 p-4 bg-gray-100">
+      <div className="flex gap-6 p-4 bg-white border-b border-gray-200">
         <div className="flex-1">
           <ItemSearch
             search={searchTerm}
@@ -26,22 +25,14 @@ export function POSScreen() {
             onClear={clearSearch}
           />
         </div>
-        <div className="w-96">
+        <div className="w-80">
           <CustomerSelector />
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden p-4">
-        {/* Item List Section */}
-        <div className="flex-1 overflow-auto mr-4">
-          <ItemList searchTerm={searchTerm} />
-        </div>
-
-        {/* Cart Section */}
-        <div className="w-96 flex flex-col border-l border-gray-200 bg-white">
-          <Cart />
-        </div>
+      {/* Items Grid */}
+      <div className="flex-1 overflow-hidden">
+        <ItemList searchTerm={searchTerm} />
       </div>
     </div>
   );

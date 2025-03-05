@@ -1151,6 +1151,11 @@
   resolved "https://registry.yarnpkg.com/@types/parse-json/-/parse-json-4.0.2.tgz#5950e50960793055845e956c427fc2b0d70c5239"
   integrity sha512-dISoDXWWQwUquiKsyZ4Ng+HX2KsPL7LyHKHQwgGFEA3IaKac4Obd+h2a/a6waisAoepJlBcx9paWqjA8/HVjCw==
 
+"@types/prismjs@^1.26.0":
+  version "1.26.5"
+  resolved "https://registry.yarnpkg.com/@types/prismjs/-/prismjs-1.26.5.tgz#72499abbb4c4ec9982446509d2f14fb8483869d6"
+  integrity sha512-AUZTa7hQ2KY5L7AmtSiqxlhWxb4ina0yd8hNbl4TWuqnv/pFP0nDMb3YrfSBf4hJVGLh2YEIBfKaBW/9UEl6IQ==
+
 "@types/react-dom@^19.0.3":
   version "19.0.4"
   resolved "https://registry.yarnpkg.com/@types/react-dom/-/react-dom-19.0.4.tgz#bedba97f9346bd4c0fe5d39e689713804ec9ac89"
@@ -2341,6 +2346,11 @@ natural-compare@^1.4.0:
   resolved "https://registry.yarnpkg.com/natural-compare/-/natural-compare-1.4.0.tgz#4abebfeed7541f2c27acfb29bdbbd15c8d5ba4f7"
   integrity sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==
 
+next-themes@^0.4.4:
+  version "0.4.4"
+  resolved "https://registry.yarnpkg.com/next-themes/-/next-themes-0.4.4.tgz#ce6f68a4af543821bbc4755b59c0d3ced55c2d13"
+  integrity sha512-LDQ2qIOJF0VnuVrrMSMLrWGjRMkq+0mpgl6e0juCLqdJ+oo8Q84JRWT6Wh11VDQKkMMe+dVzDKLWs5n87T+PkQ==
+
 node-releases@^2.0.19:
   version "2.0.19"
   resolved "https://registry.yarnpkg.com/node-releases/-/node-releases-2.0.19.tgz#9e445a52950951ec4d177d843af370b411caf314"
@@ -2520,6 +2530,14 @@ prelude-ls@^1.2.1:
   resolved "https://registry.yarnpkg.com/prelude-ls/-/prelude-ls-1.2.1.tgz#debc6489d7a6e6b0e7611888cec880337d316396"
   integrity sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==
 
+prism-react-renderer@^2.4.1:
+  version "2.4.1"
+  resolved "https://registry.yarnpkg.com/prism-react-renderer/-/prism-react-renderer-2.4.1.tgz#ac63b7f78e56c8f2b5e76e823a976d5ede77e35f"
+  integrity sha512-ey8Ls/+Di31eqzUxC46h8MksNuGx/n0AAC8uKpwFau4RPDYLuE3EXTp8N8G2vX2N7UC/+IXeNUnlWBGGcAG+Ig==
+  dependencies:
+    "@types/prismjs" "^1.26.0"
+    clsx "^2.0.0"
+
 prop-types@15.x, prop-types@^15.6.0, prop-types@^15.6.2, prop-types@^15.8.1:
   version "15.8.1"
   resolved "https://registry.yarnpkg.com/prop-types/-/prop-types-15.8.1.tgz#67d87bf1a694f48435cf332c24af10214a3140b5"
@@ -2673,6 +2691,11 @@ react-transition-group@^4.3.0:
     loose-envify "^1.4.0"
     prop-types "^15.6.2"
 
+react-use-cart@^1.14.0:
+  version "1.14.0"
+  resolved "https://registry.yarnpkg.com/react-use-cart/-/react-use-cart-1.14.0.tgz#61714e55c948b6d069e8fbd3ffebb1a84705d49c"
+  integrity sha512-Qd3booG4wFAB04zrVWyiV/nxB+pv/7l7zNJO7isquE1LKpNuGpOpCcmCVCut5YPDilEMemx33+/103anefcVWA==
+
 react@18:
   version "18.3.1"
   resolved "https://registry.yarnpkg.com/react/-/react-18.3.1.tgz#49ab892009c53933625bd16b2533fc754cab2891"
@@ -2810,6 +2833,11 @@ socket.io-parser@~4.2.4:
     "@socket.io/component-emitter" "~3.1.0"
     debug "~4.3.1"
 
+sonner@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/sonner/-/sonner-2.0.1.tgz#f41774b2e0ee770152458a336570a4d577d03e6f"
+  integrity sha512-FRBphaehZ5tLdLcQ8g2WOIRE+Y7BCfWi5Zyd8bCvBjiW8TxxAyoWZIxS661Yz6TGPqFQ4VLzOF89WEYhfynSFQ==
+
 source-map-js@^1.2.1:
   version "1.2.1"
   resolved "https://registry.yarnpkg.com/source-map-js/-/source-map-js-1.2.1.tgz#1ce5650fddd87abc099eda37dcff024c2667ae46"
@@ -2916,10 +2944,12 @@ tailwind-merge@^3.0.1:
   resolved "https://registry.yarnpkg.com/tailwind-merge/-/tailwind-merge-3.0.1.tgz#0f0189966511ebcd63ef98d9eaf5607beb0d59d3"
   integrity sha512-AvzE8FmSoXC7nC+oU5GlQJbip2UO7tmOhOfQyOmPhrStOGXHU08j8mZEHZ4BmCqY5dWTCo4ClWkNyRNx1wpT0g==
 
-tailwind-scrollbar@^3.1.0:
-  version "3.1.0"
-  resolved "https://registry.yarnpkg.com/tailwind-scrollbar/-/tailwind-scrollbar-3.1.0.tgz#ff7596407b6da5209261d8ff03860ab9206a59e3"
-  integrity sha512-pmrtDIZeHyu2idTejfV59SbaJyvp1VRjYxAjZBH0jnyrPRo6HL1kD5Glz8VPagasqr6oAx6M05+Tuw429Z8jxg==
+tailwind-scrollbar@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/tailwind-scrollbar/-/tailwind-scrollbar-4.0.0.tgz#c56318c5cce14ef81a1e3445d38ec3e778028df7"
+  integrity sha512-elqx9m09VHY8gkrMiyimFO09JlS3AyLFXT0eaLaWPi7ImwHlbZj1ce/AxSis2LtR+ewBGEyUV7URNEMcjP1Z2w==
+  dependencies:
+    prism-react-renderer "^2.4.1"
 
 tailwindcss-animate@^1.0.7:
   version "1.0.7"

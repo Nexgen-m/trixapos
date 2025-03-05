@@ -1,4 +1,4 @@
-import { call, db } from "../../lib/frappe"; // Using frappe-js-sdk
+import { call } from "../../lib/frappe"; // Using frappe-js-sdk
 import { Item } from "../../types/pos";
 
 /**
@@ -32,7 +32,6 @@ export async function fetchProducts(
   pageSize: number = 50
 ): Promise<{ items: Item[]; nextPage: number | null }> {
   try {
-    // API Call
     const response = await call.get("trixapos.api.item_api.get_items", {
       page,
       page_size: pageSize,
@@ -40,21 +39,20 @@ export async function fetchProducts(
       search_term: searchTerm,
     });
 
-    // ✅ Debugging: Log the raw API response
-    console.log("API Response:", response);
+    console.log("API Response:", response); // Debugging API response
 
-    // ✅ Validate API structure
     if (!response || !response.message || !Array.isArray(response.message.items)) {
-      throw new Error("❌ Invalid response from Product API");
+      console.error("Invalid API Response Format:", response);
+      throw new Error("Invalid API response format");
     }
 
-    // ✅ Extract Items and Next Page
     const data: Item[] = response.message.items || [];
     const nextPage: number | null = response.message.next_page ?? null;
 
     return { items: data, nextPage };
   } catch (error: any) {
-    console.error("❌ Error fetching products:", error.message || error);
+    console.error("Full Error Object:", error);
+    console.error("Error fetching products:", error?.message || "Unknown Error");
     return { items: [], nextPage: null };
   }
 }

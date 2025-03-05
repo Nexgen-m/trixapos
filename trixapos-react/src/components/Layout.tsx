@@ -1,145 +1,127 @@
-import React, { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
-import { Store, ChevronDown, Clock, Menu } from "lucide-react";
-import { db } from "../lib/frappe"; // Assuming `db` is your data fetching utility
+// import React, { useState, useEffect } from "react";
+// import { Outlet } from "react-router-dom";
+// import { Store, Clock, Menu, Settings } from "lucide-react";
+// import { db } from "../lib/frappe"; // Assuming `db` is your data fetching utility
+// import { Cart } from "./cart/Cart"; // Importing the Cart component
 
-interface CompanyInfo {
-  name: string;
-  branch?: string;
-}
+// interface CompanyInfo {
+//   name: string;
+//   branch?: string;
+// }
 
-export function Layout() {
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-  const [username, setUsername] = useState<string>("");
-  const [categories, setCategories] = useState<string[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+// export function Layout() {
+//   const [currentTime, setCurrentTime] = useState(new Date());
+//   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+//   const [username, setUsername] = useState<string>("Demo User");
+//   const [categories, setCategories] = useState<string[]>([]);
+//   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+//   useEffect(() => {
+//     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+//     return () => clearInterval(timer);
+//   }, []);
 
-    return () => clearInterval(timer);
-  }, []);
+//   useEffect(() => {
+//     const loadCompanyInfo = async () => {
+//       try {
+//         const company = await db.getDoc("Company", "TrixaPOS");
+//         setCompanyInfo(company as CompanyInfo);
 
-  useEffect(() => {
-    const loadCompanyInfo = async () => {
-      try {
-        const company = await db.getDoc("Company", "TrixaPOS");
-        setCompanyInfo(company as CompanyInfo);
+//         const user = await db.getDoc("User", localStorage.getItem("user") || "");
+//         setUsername(user.full_name || user.name);
 
-        const user = await db.getDoc("User", localStorage.getItem("user") || "");
-        setUsername(user.full_name || user.name);
+//         const itemGroups = await db.getDocList("Item Group", {
+//           fields: ["name"],
+//           filters: [["is_group", "=", 0]],
+//         });
+//         setCategories(itemGroups.map((group) => group.name));
+//       } catch (error) {
+//         console.error("Error loading company info:", error);
+//       }
+//     };
 
-        const itemGroups = await db.getDocList("Item Group", {
-          fields: ["name"],
-          filters: [["is_group", "=", 0]],
-        });
-        setCategories(itemGroups.map((group) => group.name));
-      } catch (error) {
-        console.error("Error loading company info:", error);
-      }
-    };
+//     loadCompanyInfo();
+//   }, []);
 
-    loadCompanyInfo();
-  }, []);
+//   const formattedTime = currentTime.toLocaleTimeString();
+//   const formattedDate = currentTime.toLocaleDateString("en-US", {
+//     weekday: "long",
+//     year: "numeric",
+//     month: "long",
+//     day: "numeric",
+//   });
 
-  const formattedTime = currentTime.toLocaleTimeString();
-  const formattedDate = currentTime.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+//   return (
+//     <div className="flex flex-col h-screen">
+//       {/* Header */}
+//       <header className="bg-blue-600 text-white flex items-center justify-between px-4 py-2">
+//         <div className="flex items-center gap-4">
+//           <button
+//             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+//             className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
+//           >
+//             <Menu className="h-5 w-5" />
+//           </button>
+//           <Store className="h-6 w-6" />
+//           <span className="text-lg font-bold">{companyInfo?.name || "TrixaPOS"}</span>
+//           <span className="text-sm">{companyInfo?.branch || "Main Branch"}</span>
+//         </div>
+//         <div className="flex items-center gap-4">
+//           <Clock className="h-5 w-5" />
+//           <span>{formattedTime}</span>
+//           <span className="text-blue-200">|</span>
+//           <span>{formattedDate}</span>
+//           <span className="font-medium">Welcome, {username}</span>
+//           <button className="p-1 hover:bg-blue-700 rounded-lg transition-colors">
+//             <Settings className="h-5 w-5" />
+//           </button>
+//         </div>
+//       </header>
 
-  return (
-    <div className="flex flex-col h-screen">
-      {/* Sidebar */}
-      <div
-        className={`bg-gray-800 transition-all duration-300 ${isSidebarOpen ? "w-64" : "w-0"}`}
-        style={{ height: "100vh" }}
-      >
-        {isSidebarOpen && (
-          <div className="p-4">
-            <h2 className="text-lg font-semibold text-gray-200 mb-4">Categories</h2>
-            <nav className="space-y-2">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  className="w-full text-left px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors"
-                >
-                  {category}
-                </button>
-              ))}
-            </nav>
-          </div>
-        )}
-      </div>
+//       {/* Main Layout: Left Sidebar | Main Content | Right Sidebar (Cart) */}
+//       <div className="flex flex-1 overflow-hidden">
+        
+//         {/* Left Sidebar (Intact) */}
+//         <div className={`bg-gray-800 transition-all duration-300 ${isSidebarOpen ? "w-64" : "w-0"} overflow-y-auto`}>
+//           {isSidebarOpen && (
+//             <div className="p-4">
+//               <h2 className="text-lg font-semibold text-gray-200 mb-4">Categories</h2>
+//               <nav className="space-y-2">
+//                 {categories.map((category) => (
+//                   <button
+//                     key={category}
+//                     className="w-full text-left px-4 py-2 rounded-lg text-gray-300 hover:bg-gray-700 transition-colors"
+//                   >
+//                     {category}
+//                   </button>
+//                 ))}
+//               </nav>
+//             </div>
+//           )}
+//         </div>
 
-      {/* Main content area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header>
-          <div className="bg-blue-600">
-            <div className="mx-auto px-4 py-2 sm:px-6 lg:px-8 flex items-center justify-between text-sm text-white">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                  className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
-                >
-                  <Menu className="h-5 w-5" />
-                </button>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span>{formattedTime}</span>
-                  <span className="text-blue-200">|</span>
-                  <span>{formattedDate}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-4">
-                {username && (
-                  <div className="flex items-center gap-1">
-                    <span className="font-medium">Welcome, {username}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+//         {/* Main Content Area */}
+//         <main className="flex-1 bg-gray-100 overflow-auto">
+//           <div className="mx-auto py-6 sm:px-6 lg:px-8">
+//             <Outlet /> {/* Dynamic content from React Router */}
+//           </div>
+//         </main>
 
-          {/* Main Header */}
-          <div className="bg-white border-b border-gray-200 shadow-sm">
-            <div className="mx-auto px-4 py-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <Store className="h-8 w-8 text-blue-600" />
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">
-                      {companyInfo?.name || "TrixaPOS"}
-                    </h1>
-                    {companyInfo?.branch && (
-                      <p className="text-sm text-blue-600">Branch: {companyInfo.branch}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button className="flex items-center gap-1 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors">
-                    <span>Options</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
+//         {/* Right Sidebar (Cart) */}
+//         <div className="w-96 bg-gray-900 h-full flex flex-col border-l border-gray-700 overflow-hidden">
+//           <div className="flex items-center justify-between p-4 border-b border-gray-700 text-white">
+//             <div className="flex items-center gap-2">
+//               <span className="font-semibold">Current Order</span>
+//             </div>
+//             <span className="text-sm">0 items</span>
+//           </div>
+//           <div className="flex-1 overflow-y-auto">
+//             <Cart /> {/* Cart component rendered here */}
+//           </div>
+//         </div>
 
-        <main className="flex-1 bg-gray-50 overflow-hidden">
-          <div className="mx-auto py-6 sm:px-6 lg:px-8 flex flex-1 overflow-hidden">
-            <div className="flex flex-1 overflow-auto">
-              <Outlet />
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
+//       </div>
+//     </div>
+//   );
+// }
+// // 

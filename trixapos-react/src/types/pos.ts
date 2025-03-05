@@ -4,6 +4,9 @@ export interface Item {
   name: string;
   item_name: string;
   item_code: string;
+  uom?: string;           // ✅ Now optional
+  warehouse?: string;
+  conversion_factor?: number;
   description?: string;
   price_list_rate: number; // ✅ Renamed from "rate" for consistency
   stock_qty: number;
@@ -47,3 +50,4 @@ export interface Payment {
   mode_of_payment: string;
   amount: number;
 }
+

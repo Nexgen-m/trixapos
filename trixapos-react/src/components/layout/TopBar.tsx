@@ -1,49 +1,62 @@
-import React from 'react';
-import { Menu, Clock } from 'lucide-react';
-import { format } from 'date-fns';
+import React, { useEffect, useState } from "react";
+import { Menu, Settings, Clock } from "lucide-react";
+import { OptionsMenu } from "./OptionsMenu";
 
 interface TopBarProps {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
-  username?: string;
+  username: string;
 }
 
 export function TopBar({ isSidebarOpen, setIsSidebarOpen, username }: TopBarProps) {
-  const [currentTime, setCurrentTime] = React.useState(new Date());
+  const [currentTime, setCurrentTime] = useState<string>("");
 
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+      const formattedTime = now.toLocaleTimeString();
+      const formattedDate = now.toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      setCurrentTime(`${formattedTime} | ${formattedDate}`);
+    };
 
-    return () => clearInterval(timer);
+    updateClock(); // Initial call
+    const interval = setInterval(updateClock, 1000); // Update every second
+
+    return () => clearInterval(interval); // Cleanup interval on unmount
   }, []);
 
   return (
-    <div className="bg-blue-600">
-      <div className="mx-auto px-4 py-2 sm:px-6 lg:px-8 flex items-center justify-between text-sm text-white">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            <span>{format(currentTime, 'HH:mm:ss')}</span>
-            <span className="text-blue-200">|</span>
-            <span>{format(currentTime, 'EEEE, MMMM d, yyyy')}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {username && (
-            <div className="flex items-center gap-1">
-              <span className="font-medium">Welcome, {username}</span>
-            </div>
-          )}
-        </div>
+    <div className="bg-blue-600 text-white flex items-center justify-between px-4 py-2 relative">
+      {/* Left Side - Sidebar Toggle and Title */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+          className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <span className="text-lg font-bold">TRIXAPOS</span>
+      </div>
+
+      {/* Centered Clock */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center gap-2">
+        <Clock className="h-5 w-5" />
+        <span>{currentTime}</span>
+      </div>
+
+      {/* Right Side - User Info and Settings */}
+      <div className="flex items-center gap-4">
+        <span>Welcome, {username}</span>
+        <button className="p-1 hover:bg-blue-700 rounded-lg transition-colors">
+          <OptionsMenu/>
+        </button>
       </div>
     </div>
   );
 }
+

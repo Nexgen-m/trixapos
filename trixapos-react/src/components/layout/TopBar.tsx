@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Menu, Settings, Clock } from "lucide-react";
+import { Menu, Clock } from "lucide-react";
 import { OptionsMenu } from "./OptionsMenu";
 
 interface TopBarProps {
@@ -52,11 +52,10 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, username }: TopBarProp
       {/* Right Side - User Info and Settings */}
       <div className="flex items-center gap-4">
         <span>Welcome, {username}</span>
-        <button className="p-1 hover:bg-blue-700 rounded-lg transition-colors">
-          <OptionsMenu/>
-        </button>
+        <div className="p-1 hover:bg-blue-700 rounded-lg transition-colors">
+          <OptionsMenu/>  {/* ✅ FIX: Wrapped in <div> instead of <button> */}
+        </div>
       </div>
     </div>
   );
 }
-

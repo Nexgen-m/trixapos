@@ -3,29 +3,28 @@ import { MainLayout } from "./components/MainLayout";
 import { POSScreen } from "./screens/POSScreen";
 import { LoginScreen } from "./screens/LoginScreen";
 import { useFrappeAuth } from "frappe-react-sdk";
-import { JSX } from "react";
+import { useEffect,JSX } from "react";
 
-// Authentication Guard
+// ✅ Authentication Guard
 const AuthGuard = ({ children }: { children: JSX.Element }) => {
-  const { currentUser, isLoading } = useFrappeAuth();
+  const { currentUser, isLoading, updateCurrentUser } = useFrappeAuth();
+
+  useEffect(() => {
+    updateCurrentUser(); // ✅ Calls `/api/method/frappe.auth.get_user_info`
+  }, []);
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
-  return currentUser ? children : <Navigate to="/login" replace />;
+  return currentUser ? children : <Navigate to="/login" />;
 };
 
-// Detect the correct base path
-const getBasePath = () => {
-  return import.meta.env.MODE === "development" ? "/" : "/trixapos";
-};
-
-// ✅ Fix: Use createBrowserRouter instead of exporting <AppRouter>
+// ✅ Updated Router
 export const router = createBrowserRouter(
   createRoutesFromElements(
     <>
-      <Route path="/" element={<Navigate to="/trixapos" />} /> {/* Redirect root to /trixapos */}
+      <Route path="/" element={<Navigate to="/trixapos" />} />
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/trixapos" element={<AuthGuard><MainLayout /></AuthGuard>}>
         <Route index element={<POSScreen />} />
@@ -33,5 +32,5 @@ export const router = createBrowserRouter(
       <Route path="*" element={<div className="text-center p-10">404 - Page Not Found</div>} />
     </>
   ),
-  { basename: getBasePath() }
+  { basename: "/trixapos" }
 );

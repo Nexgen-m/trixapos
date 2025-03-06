@@ -371,7 +371,11 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   },
 
   /** 👤 Set Customer */
-  setCustomer: (customer) => set({ customer }),
+  setCustomer: (customer) => {
+    console.log("Setting customer:", customer); // ✅ Debugging step
+    set({ customer });
+  },
+  
 
   /** 📂 Set Active Category */
   setSelectedCategory: (category) => set({ selectedCategory: category }),

@@ -27,7 +27,7 @@ export function PaymentMethods({
           }`}
         >
           <div className={`p-1 rounded-lg ${selectedMethod === method.id ? method.color : 'bg-gray-100'}`}>
-            {React.cloneElement(method.icon as React.ReactElement, {
+            {React.cloneElement(method.icon as React.ReactElement<any>, {
               className: `w-5 h-5 ${selectedMethod === method.id ? 'text-white' : 'text-gray-600'}`
             })}
           </div>

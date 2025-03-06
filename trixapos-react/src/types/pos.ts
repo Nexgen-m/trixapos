@@ -13,12 +13,12 @@ export interface Item {
   image?: string;
 }
 
-// Define an interface for a Customer
 export interface Customer {
   name: string;
   customer_name: string;
-  email?: string;
-  phone?: string;
+  territory?: string;
+  customer_group?: string;
+  default_price_list?: string; // ✅ Added price list field
 }
 
 // Extend Item to include quantity and discount for Cart Items

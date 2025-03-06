@@ -504,7 +504,6 @@ import { PaymentMethods } from './PaymentMethods';
 import { TransactionDetails } from './TransactionDetails';
 import { NumberPad } from './NumberPad';
 import { OrderSummary } from './OrderSummary';
-import { console } from 'inspector';
 
 interface PaymentPageProps {
   isOpen: boolean;
@@ -512,9 +511,9 @@ interface PaymentPageProps {
 }
 
 export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
-  const { cart, total: cartTotal } = usePOSStore();
+  const { cart, total: cartTotal, orderDiscount: storeOrderDiscount, setOrderDiscount } = usePOSStore();
   const [selectedMethod, setSelectedMethod] = useState<string>('cash');
-  const [discountPercentage, setDiscountPercentage] = useState(0);
+  const [orderDiscountPercentage, setOrderDiscountPercentage] = useState(storeOrderDiscount || 0);
   const [amountPaid, setAmountPaid] = useState('');
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
@@ -522,12 +521,23 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
 
   // Ensure valid cart total
   const validCartTotal = cartTotal || 0;
-  
 
-  // Correct discount calculation
-  const discountAmount = parseFloat(((validCartTotal * discountPercentage) / 100).toFixed(2));
-  const totalAfterDiscount = parseFloat((validCartTotal - discountAmount).toFixed(2));
+  // Calculate item discount amount
+  const itemDiscountAmount = cart.reduce(
+    (sum, item) => sum + ((item.price_list_rate * item.qty) * (item.discount || 0)) / 100,
+    0
+  );
   
+  // Calculate subtotal after item discounts
+  const subtotalAfterItemDiscounts = cart.reduce(
+    (sum, item) => sum + (item.price_list_rate * item.qty), 0
+  ) - itemDiscountAmount;
+  
+  // Calculate order discount amount
+  const orderDiscountAmount = (subtotalAfterItemDiscounts * orderDiscountPercentage) / 100;
+  
+  // Calculate final total
+  const totalAfterAllDiscounts = subtotalAfterItemDiscounts - orderDiscountAmount;
 
   const handleNumberInput = useCallback((value: string) => {
     setAmountPaid(prevAmount => {
@@ -565,16 +575,19 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
   }, []);
 
   const handleExactPayment = () => {
-    setAmountPaid(totalAfterDiscount.toFixed(2));
+    setAmountPaid(totalAfterAllDiscounts.toFixed(2));
   };
 
   const handleRoundUpPayment = () => {
-    setAmountPaid(Math.ceil(totalAfterDiscount).toFixed(2));
+    setAmountPaid(Math.ceil(totalAfterAllDiscounts).toFixed(2));
   };
 
-  const handleDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOrderDiscountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = parseFloat(e.target.value) || 0;
-    setDiscountPercentage(Math.min(100, Math.max(0, value)));
+    const clampedValue = Math.min(100, Math.max(0, value));
+    setOrderDiscountPercentage(clampedValue);
+    // Update the store with the new value
+    setOrderDiscount(clampedValue);
   };
 
   const formatCurrency = (amount: number) => {
@@ -588,8 +601,8 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
 
   // Calculation helpers
   const amountPaidNum = parseFloat(amountPaid) || 0;
-  const change = Math.max(0, amountPaidNum - totalAfterDiscount);
-  const remaining = Math.max(0, totalAfterDiscount - amountPaidNum);
+  const change = Math.max(0, amountPaidNum - totalAfterAllDiscounts);
+  const remaining = Math.max(0, totalAfterAllDiscounts - amountPaidNum);
 
   // Reset states when dialog opens/closes
   useEffect(() => {
@@ -598,8 +611,10 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
       setPaymentComplete(false);
       setShowSummary(false);
       setIsCalculatorOpen(false);
+      // Initialize order discount from store
+      setOrderDiscountPercentage(storeOrderDiscount || 0);
     }
-  }, [isOpen]);
+  }, [isOpen, storeOrderDiscount]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -619,11 +634,12 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
             {/* Left Side */}
             <div className="col-span-5 flex flex-col gap-4">
               <TransactionDetails
-                total={totalAfterDiscount}
+                total={totalAfterAllDiscounts}
                 cart={cart}
                 amountPaid={amountPaid}
-                itemDiscounts={discountAmount}
-                discountPercentage={discountPercentage}
+                itemDiscounts={itemDiscountAmount}
+                orderDiscount={orderDiscountPercentage}
+                orderDiscountAmount={orderDiscountAmount}
                 paymentComplete={paymentComplete}
                 formatCurrency={formatCurrency}
                 change={change}
@@ -635,15 +651,17 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
                 onSelectMethod={setSelectedMethod} 
               />
 
-              {/* Discount Input */}
+              {/* Order Discount Input */}
               <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-                <label className="block text-sm font-medium text-gray-700">Total Discount (%)</label>
+                <label className="block text-sm font-medium text-gray-700">Order Discount (%)</label>
                 <Input
                   type="number"
-                  value={discountPercentage}
-                  onChange={handleDiscountChange}
+                  value={orderDiscountPercentage}
+                  onChange={handleOrderDiscountChange}
                   className="w-full p-2 mt-1 text-lg border rounded-lg"
                   placeholder="Enter discount %"
+                  min="0"
+                  max="100"
                 />
               </div>
 
@@ -663,7 +681,7 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
                 onExactPayment={handleExactPayment}
                 onRoundUpPayment={handleRoundUpPayment}
                 onOpenCalculator={() => setIsCalculatorOpen(true)}
-                totalAmount={totalAfterDiscount}
+                totalAmount={totalAfterAllDiscounts}
               />
             </div>
           </div>
@@ -673,7 +691,7 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
             <Button
               onClick={() => setPaymentComplete(true)}
               className="w-full p-4 text-base rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-gray-300 transition-colors"
-              disabled={amountPaidNum < totalAfterDiscount || paymentComplete}
+              disabled={amountPaidNum < totalAfterAllDiscounts || paymentComplete}
             >
               {paymentComplete ? (
                 <div className="flex items-center justify-center gap-2">
@@ -692,11 +710,10 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
           <OrderSummary
             cart={cart}
             cartTotal={validCartTotal}
-            discountPercentage={discountPercentage}
-            discountAmount={discountAmount}
-            totalAfterDiscount={totalAfterDiscount}
-            itemDiscounts={discountAmount}
-            additionalDiscount={0}
+            orderDiscountPercentage={orderDiscountPercentage}
+            orderDiscountAmount={orderDiscountAmount}
+            itemDiscounts={itemDiscountAmount}
+            totalAfterDiscount={totalAfterAllDiscounts}
             formatCurrency={formatCurrency}
             onClose={() => setShowSummary(false)}
           />

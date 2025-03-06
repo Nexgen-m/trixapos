@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Store } from 'lucide-react';
-import { useFrappeAuth } from 'frappe-react-sdk';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Store } from "lucide-react";
+import { useFrappeAuth } from "frappe-react-sdk";
 
 export function LoginScreen() {
   const { login, currentUser, isLoading, error: authError } = useFrappeAuth();
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
-  const [error, setError] = useState<string>(''); // ✅ Ensure error is a string
+  const [credentials, setCredentials] = useState({ username: "", password: "" });
+  const [error, setError] = useState<string>("");
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!isLoading && currentUser) {
-      navigate('/trixapos');
+      console.log("✅ User session found! Redirecting to POS...");
+      navigate("/trixapos");
     }
   }, [currentUser, isLoading, navigate]);
 
@@ -21,17 +22,16 @@ export function LoginScreen() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-  
+    setError("");
+
     try {
-      await login(credentials); // Pass credentials object as a single argument
-      navigate('/trixapos');
+      await login(credentials);
+      navigate("/trixapos");
     } catch (err) {
-      console.error('Login error:', err);
-      setError('Login failed. Please try again.');
+      console.error("❌ Login error:", err);
+      setError("Login failed. Please try again.");
     }
   };
-  
 
   if (isLoading) {
     return <div className="text-center py-10">Checking session...</div>;
@@ -46,9 +46,7 @@ export function LoginScreen() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           {(error || authError) && (
-            <div className="bg-red-100 text-red-700 p-2 rounded">
-              {String(error || authError)} {/* ✅ Convert error to string */}
-            </div>
+            <div className="bg-red-100 text-red-700 p-2 rounded">{String(error || authError)}</div>
           )}
           <div className="rounded-md shadow-sm space-y-2">
             <input

@@ -7,27 +7,30 @@ import { Calculator as CalculatorComponent } from "../calculator/Calculator";
 import { PaymentPage } from "../payment/PaymentPage";
 
 export function Cart() {
-  const { cart, clearCart } = usePOSStore();
+  const { cart, clearCart, orderDiscount } = usePOSStore();
 
-  // ✅ State to control calculator dialog
+  // State to control calculator dialog
   const [isCalculatorOpen, setCalculatorOpen] = useState(false);
 
-  // ✅ State to control payment dialog
+  // State to control payment dialog
   const [isPaymentOpen, setPaymentOpen] = useState(false);
 
-  // ✅ Calculate subtotal (price * quantity for all items)
+  // Calculate subtotal (price * quantity for all items)
   const subtotal = cart.reduce((sum, item) => sum + (item.price_list_rate * item.qty), 0);
 
   // Calculate Item Discount as percentage-based
-const discountAmount = cart.reduce(
-  (sum, item) => sum + ((item.price_list_rate * item.qty) * (item.discount || 0)) / 100,
-  0
-);
+  const itemDiscountAmount = cart.reduce(
+    (sum, item) => sum + ((item.price_list_rate * item.qty) * (item.discount || 0)) / 100,
+    0
+  );
+  
+  // Calculate order discount amount based on percentage
+  const orderDiscountAmount = (subtotal - itemDiscountAmount) * (orderDiscount / 100);
 
-  // ✅ Calculate final total after discount
-  const total = subtotal - discountAmount;
+  // Calculate final total after both item discounts and order discount
+  const total = subtotal - itemDiscountAmount - orderDiscountAmount;
 
-  // ✅ Count total items in the cart
+  // Count total items in the cart
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
   const holdOrder = () => {
@@ -88,8 +91,17 @@ const discountAmount = cart.reduce(
             </div>
             <div className="flex justify-between">
               <span>Item Discount</span>
-              <span>-${discountAmount.toFixed(2)}</span>
+              <span>-${itemDiscountAmount.toFixed(2)}</span>
             </div>
+            
+            {/* Order Discount Display */}
+            {orderDiscount > 0 && (
+              <div className="flex justify-between">
+                <span>Order Discount ({orderDiscount}%)</span>
+                <span>-${orderDiscountAmount.toFixed(2)}</span>
+              </div>
+            )}
+            
             <div className="flex justify-between">
               <span>Tax</span>
               <span>$0.00</span>
@@ -100,7 +112,7 @@ const discountAmount = cart.reduce(
           <div className="pt-3 border-t border-gray-800">
             <div className="flex items-center justify-between">
               <span className="text-gray-300">Total</span>
-              <span className="text-xl font-bold text-blue-400">${total.toFixed(2)}</span>
+              <span className="text-xl font-bold text-blue-400">${Math.max(0, total).toFixed(2)}</span>
             </div>
           </div>
 
@@ -128,7 +140,7 @@ const discountAmount = cart.reduce(
               <PauseCircle className="w-4 h-4" /> Hold
             </Button>
 
-            {/* ✅ Calculator Button - Always Clickable */}
+            {/* Calculator Button - Always Clickable */}
             <Button
               size="sm"
               variant="outline"
@@ -138,7 +150,7 @@ const discountAmount = cart.reduce(
               <Calculator className="w-4 h-4" /> Calc
             </Button>
 
-            {/* ✅ Pay Button - Opens Payment Dialog */}
+            {/* Pay Button - Opens Payment Dialog */}
             <Button
               size="sm"
               className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-800 disabled:text-gray-400"
@@ -151,17 +163,17 @@ const discountAmount = cart.reduce(
         </div>
       </div>
 
-      {/* ✅ Calculator Modal */}
+      {/* Calculator Modal */}
       <CalculatorComponent
         isOpen={isCalculatorOpen}
         onClose={() => setCalculatorOpen(false)}
       />
 
-      {/* ✅ Payment Dialog - Pass Total to PaymentPage */}
+      {/* Payment Dialog - Pass Total to PaymentPage */}
       <PaymentPage 
         isOpen={isPaymentOpen}
         onClose={() => setPaymentOpen(false)}
-        // total={total}  // ✅ Pass total price to PaymentPage.tsx
+        // total={total}  // Already accessed through store
       />
     </div>
   );

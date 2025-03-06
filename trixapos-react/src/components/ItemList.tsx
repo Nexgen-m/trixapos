@@ -4,6 +4,7 @@ import { usePOSStore } from "../hooks/Stores/usePOSStore";
 import { useProducts } from "../hooks/fetchers/useProducts";
 import { Item } from "../types/pos";
 import { ShoppingCart, Tag } from "lucide-react";
+import { toast } from "sonner"; // ✅ Import toast for error messages
 
 interface ItemListProps {
   searchTerm: string;
@@ -13,6 +14,7 @@ const backendUrl = import.meta.env.VITE_FRAPPE_BASE_URL;
 
 export function ItemList({ searchTerm }: ItemListProps) {
   const selectedCategory = usePOSStore((state) => state.selectedCategory);
+  const customer = usePOSStore((state) => state.customer); // ✅ Get selected customer
   const { items, isLoading, hasMore, loadMore } = useProducts(
     selectedCategory,
     searchTerm
@@ -33,6 +35,7 @@ export function ItemList({ searchTerm }: ItemListProps) {
         else setColumnCount(5);
       }
     };
+
 
     updateColumnCount();
     window.addEventListener("resize", updateColumnCount);
@@ -61,10 +64,19 @@ export function ItemList({ searchTerm }: ItemListProps) {
     }
   }, [virtualizer.getVirtualItems(), rows, hasMore, isLoading, loadMore]);
 
-  /** Helper to get items per row */
-  const getItemsForRow = (rowIndex: number) => {
-    const startIndex = rowIndex * columnCount;
-    return items.slice(startIndex, startIndex + columnCount);
+  /** Prevent adding items without customer selection */
+  const handleAddToCart = (item: Item) => {
+    if (!customer) {
+      toast.error("Please select a customer before adding items.");
+      return;
+    }
+
+    if (item.price_list_rate <= 0) {
+      toast.error(`Item "${item.item_name}" does not have a valid price.`);
+      return;
+    }
+
+    addToCart({ ...item, qty: 1 });
   };
 
   return (
@@ -76,7 +88,7 @@ export function ItemList({ searchTerm }: ItemListProps) {
               key={item.item_code}
               className="group relative bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-lg transition-transform hover:-translate-y-1 flex flex-col"
               style={{ height: `${rowHeight}px` }}
-              onClick={() => addToCart({ ...item, qty: 1 })}
+              onClick={() => handleAddToCart(item)} // ✅ Use new function
             >
               {/* Stock Badge */}
               <div className="absolute top-2 right-2 z-10">
@@ -141,15 +153,15 @@ export function ItemList({ searchTerm }: ItemListProps) {
 
                 {/* ✅ Price & Cart Button Adjusted to Stay at Bottom */}
                 <div className="pt-3 mt-auto border-t border-slate-100 flex items-center justify-between">
-                <span className="text-lg font-semibold text-blue-600">
-                  {item.price_list_rate > 0 ? `$${Number(item.price_list_rate).toFixed(2)}` : 'Price Not Set'}
-                </span>
+                  <span className="text-lg font-semibold text-blue-600">
+                    {item.price_list_rate > 0 ? `$${Number(item.price_list_rate).toFixed(2)}` : 'Price Not Set'}
+                  </span>
 
                   <button
                     className="p-2 rounded-full bg-blue-50 text-blue-600 hover:bg-blue-100"
                     onClick={(e) => {
                       e.stopPropagation();
-                      addToCart({ ...item, qty: 1 });
+                      handleAddToCart(item); // ✅ Prevents adding if no customer
                     }}
                   >
                     <ShoppingCart className="w-4 h-4" />

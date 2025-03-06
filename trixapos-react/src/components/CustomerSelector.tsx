@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { CustomerSearch } from './CustomerSearch';
 import { useCustomers } from '../hooks/fetchers/useCustomers';
+import { usePOSStore } from '../hooks/Stores/usePOSStore'; // ✅ Import global store
 
 interface Customer {
   name: string;
   customer_name: string;
   territory?: string;
   customer_group?: string;
+  default_price_list?: string; // ✅ Ensure this exists
 }
 
 export function CustomerSelector() {
@@ -15,8 +17,9 @@ export function CustomerSelector() {
   const [isOpen, setIsOpen] = useState(false);
 
   const { data: customers = [], isLoading, error, refetch } = useCustomers(search);
+  const setCustomer = usePOSStore((state) => state.setCustomer); // ✅ Get setCustomer from global store
 
-  // Refetch customers when search term changes
+  // ✅ Ensure search refetches customer list
   useEffect(() => {
     if (search.trim()) {
       refetch();
@@ -32,10 +35,16 @@ export function CustomerSelector() {
         isOpen={isOpen}
         onSearch={(value) => setSearch(value)}
         onSelect={(customer) => {
+          // console.log("Customer selected:", customer); // ✅ Debugging step
+          
           setSelectedCustomer(customer);
+          setCustomer(customer); // ✅ Update global state
           setIsOpen(false);
         }}
-        onClear={() => setSelectedCustomer(null)}
+        onClear={() => {
+          setSelectedCustomer(null);
+          setCustomer(null); // ✅ Clear global customer state
+        }}
         onFocus={() => setIsOpen(true)}
       />
 

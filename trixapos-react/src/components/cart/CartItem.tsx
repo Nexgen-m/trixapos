@@ -2,7 +2,7 @@ import React from "react";
 import { usePOSStore } from "../../hooks/Stores/usePOSStore";
 import { CartItemActions } from "./CartItemActions";
 import { CartItemEditDialog } from "./CartItemEditDialog";
-import { Package, Pencil, Trash2 } from "lucide-react";
+import { Package, Pencil, Trash2, PercentIcon } from "lucide-react";
 
 interface CartItemProps {
   item: {
@@ -70,21 +70,34 @@ export function CartItem({ item }: CartItemProps) {
       </div>
 
       {/* Action Buttons (Second Row) */}
-      <div className="flex justify-end items-center mt-2 gap-3">
-        {/* Edit Button */}
-        <CartItemEditDialog item={item} updateItem={updateItem}>
-          <button className="p-1 rounded text-gray-500 hover:text-gray-300">
-            <Pencil className="w-4 h-4" />
-          </button>
-        </CartItemEditDialog>
+      <div className="flex items-center mt-2">
+        {/* Discount Information - Now on the left */}
+        <div className="flex-grow">
+          {(item.discount || 0) > 0 && (
+            <div className="flex items-center text-xs text-red-400">
+              <PercentIcon className="w-3 h-3 mr-1" />
+              <span>{item.discount}% off (-${discountAmount.toFixed(2)})</span>
+            </div>
+          )}
+        </div>
 
-        {/* Remove Button - Now Uses the Same Red Color as the One You Circled */}
-        <button 
-          onClick={() => removeFromCart(item.item_code)}
-          className="p-1 rounded hover:bg-red-900/30 text-red-400 hover:text-red-300 group-hover:opacity-100 transition-opacity"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {/* Action buttons on the right */}
+        <div className="flex gap-3">
+          {/* Edit Button */}
+          <CartItemEditDialog item={item} updateItem={updateItem}>
+            <button className="p-1 rounded text-gray-500 hover:text-gray-300">
+              <Pencil className="w-4 h-4" />
+            </button>
+          </CartItemEditDialog>
+
+          {/* Remove Button */}
+          <button 
+            onClick={() => removeFromCart(item.item_code)}
+            className="p-1 rounded hover:bg-red-900/30 text-red-400 hover:text-red-300 group-hover:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,3 @@
-// OrderSummary.tsx: Shows a detailed order summary
-
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -8,17 +6,9 @@ import { DialogHeader, DialogTitle } from '@/components/ui/dialog';
 interface OrderSummaryProps {
   cart: any[]; // Replace 'any' with your actual cart item type
   cartTotal: number;
+  orderDiscountPercentage: number;
+  orderDiscountAmount: number;
   itemDiscounts: number;
-  additionalDiscount: number;
-  formatCurrency: (amount: number) => string;
-  onClose: () => void;
-}
-
-interface OrderSummaryProps {
-  cart: any[];
-  cartTotal: number;
-  discountPercentage: number;
-  discountAmount: number;
   totalAfterDiscount: number;
   formatCurrency: (amount: number) => string;
   onClose: () => void;
@@ -27,8 +17,9 @@ interface OrderSummaryProps {
 export function OrderSummary({
   cart,
   cartTotal,
-  discountPercentage,
-  discountAmount,
+  orderDiscountPercentage,
+  orderDiscountAmount,
+  itemDiscounts,
   totalAfterDiscount,
   formatCurrency,
   onClose
@@ -47,26 +38,42 @@ export function OrderSummary({
 
       <div className="p-4 overflow-y-auto flex-1">
         {/* Items List */}
-        <div className="grid grid-cols-3 py-2 border-b text-sm font-medium text-gray-500">
-          <div className="col-span-2">Product Name</div>
-          <div className="grid grid-cols-3">
-            <div className="text-center">Unit Price</div>
-            <div className="text-center">Qty</div>
-            <div className="text-right">Total</div>
-          </div>
+        <div className="grid grid-cols-5 py-2 border-b text-sm font-medium text-gray-500">
+          <div className="col-span-1">Product Name</div>
+          <div className="text-center">Unit Price</div>
+          <div className="text-center">Qty</div>
+          <div className="text-center">Discount</div>
+          <div className="text-right">Total</div>
         </div>
 
         <div className="space-y-2 mt-2 flex-1">
-          {cart.map((item) => (
-            <div key={item.item_code} className="grid grid-cols-3 items-center py-2 border-b">
-              <div className="col-span-2 font-medium">{item.item_name}</div>
-              <div className="grid grid-cols-3 items-center">
+          {cart.map((item, index) => {
+            const itemTotal = item.price_list_rate * item.qty;
+            const itemDiscountAmount = itemTotal * (item.discount || 0) / 100;
+            const itemTotalAfterDiscount = itemTotal - itemDiscountAmount;
+            
+            return (
+              <div key={item.item_code || index} className="grid grid-cols-5 items-center py-2 border-b">
+                <div className="col-span-1 font-medium">
+                  {item.item_name}
+                </div>
                 <div className="text-center">{formatCurrency(item.price_list_rate)}</div>
                 <div className="text-center">{item.qty}</div>
-                <div className="text-right">{formatCurrency(item.price_list_rate * item.qty)}</div>
+                <div className="text-center">
+                  {item.discount > 0 ? (
+                    <>
+                      {item.discount}% ({formatCurrency(itemDiscountAmount)})
+                    </>
+                  ) : (
+                    "-"
+                  )}
+                </div>
+                <div className="text-right">
+                  {formatCurrency(itemTotalAfterDiscount)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Updated Totals Section */}
@@ -75,12 +82,21 @@ export function OrderSummary({
             <span>Subtotal:</span>
             <span>{formatCurrency(cartTotal)}</span>
           </div>
-          {discountPercentage > 0 && (
+          
+          {itemDiscounts > 0 && (
             <div className="flex justify-between text-sm text-red-600">
-              <span>Discount ({discountPercentage}%):</span>
-              <span>-{formatCurrency(discountAmount)}</span>
+              <span>Item Discounts:</span>
+              <span>-{formatCurrency(itemDiscounts)}</span>
             </div>
           )}
+          
+          {orderDiscountPercentage > 0 && (
+            <div className="flex justify-between text-sm text-red-600">
+              <span>Order Discount ({orderDiscountPercentage}%):</span>
+              <span>-{formatCurrency(orderDiscountAmount)}</span>
+            </div>
+          )}
+          
           <div className="flex justify-between text-base font-semibold">
             <span>Total After Discount:</span>
             <span>{formatCurrency(totalAfterDiscount)}</span>

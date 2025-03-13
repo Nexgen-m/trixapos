@@ -11,3 +11,5 @@ def get_logged_user():
             "roles": frappe.get_roles(frappe.session.user)
         }
     return {"user": "Guest"}
+
+

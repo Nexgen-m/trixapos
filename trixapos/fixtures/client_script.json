@@ -1,0 +1,13 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Client Script",
+  "dt": "POS Profile",
+  "enabled": 1,
+  "modified": "2025-03-11 01:09:25.564220",
+  "module": "Trixapos",
+  "name": "POS Profile - Disable Max Discount Field",
+  "script": "// Server Script for POS Profile\r\n// Script Type: DocType\r\n// DocType: POS Profile\r\n// Event: Before Save, Before Load\r\n\r\nfrappe.ui.form.on('POS Profile', {\r\n    refresh: function(frm) {\r\n        // Set the max_discount_percentage_allowed field as readonly \r\n        // when allow_user_to_edit_additional_discount is not checked\r\n        set_discount_field_readonly(frm);\r\n    },\r\n    \r\n    allow_user_to_edit_additional_discount: function(frm) {\r\n        // Update readonly state when checkbox is toggled\r\n        set_discount_field_readonly(frm);\r\n    }\r\n});\r\n\r\nfunction set_discount_field_readonly(frm) {\r\n    // Check if the user is allowed to edit additional discount\r\n    const is_discount_allowed = frm.doc.allow_user_to_edit_additional_discount || 0;\r\n    \r\n    // Set readonly property for max_discount_percentage_allowed\r\n    frm.set_df_property('max_discount_percentage_allowed', 'read_only', !is_discount_allowed);\r\n    \r\n    // Optional: You can also hide the field completely instead of making it readonly\r\n    // frm.toggle_display('max_discount_percentage_allowed', is_discount_allowed);\r\n    \r\n    // If making readonly and the field is now readonly, you might want to clear the value\r\n    if (!is_discount_allowed && frm.doc.max_discount_percentage_allowed) {\r\n        frm.set_value('max_discount_percentage_allowed', 0);\r\n        frm.refresh_field('max_discount_percentage_allowed');\r\n    }\r\n}",
+  "view": "Form"
+ }
+]

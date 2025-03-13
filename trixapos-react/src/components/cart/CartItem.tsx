@@ -76,8 +76,8 @@ export function CartItem({ item }: CartItemProps) {
           {(item.discount || 0) > 0 && (
             <div className="flex items-center text-xs text-red-400">
               <PercentIcon className="w-3 h-3 mr-1" />
-              <span>{item.discount}% off (-${discountAmount.toFixed(2)})</span>
-            </div>
+              <span>-${discountAmount.toFixed(2)} ({item.discount}% off)</span>
+              </div>
           )}
         </div>
 

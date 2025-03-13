@@ -11,13 +11,22 @@ export async function fetchCustomers(searchTerm: string = "", limit: number = 50
       limit,
     });
 
-    if (!response || !response.message || !Array.isArray(response.message.customers)) {
-      throw new Error("Invalid API response format");
+    console.log("Customers API Response:", response); // 🔍 Debugging API response
+
+    // ✅ Handle different possible API response structures
+    if (response?.customers && Array.isArray(response.customers)) {
+      return response.customers; // ✅ Expected format { customers: [...] }
     }
 
-    return response.message.customers;
-  } catch (error) {
-    console.error("Error fetching customers:", error);
+    if (response?.message?.customers && Array.isArray(response.message.customers)) {
+      return response.message.customers; // ✅ Expected format { message: { customers: [...] } }
+    }
+
+    // ❌ Unexpected response format
+    console.error("Invalid API Response Format for Customers:", response);
+    throw new Error("Invalid API response format for customers.");
+  } catch (error: any) {
+    console.error("Error fetching customers:", error?.message || "Unknown Error");
     throw new Error("Failed to load customers.");
   }
 }
@@ -29,30 +38,54 @@ export async function fetchProducts(
   page: number = 1,
   category: string = "",
   searchTerm: string = "",
+  customer: string = "", // ✅ Include customer
   pageSize: number = 50
-): Promise<{ items: Item[]; nextPage: number | null }> {
+): Promise<{ 
+  items: Item[]; 
+  nextPage: number | null;
+  price_list_used: string;
+  using_standard_price: boolean;
+}> {
   try {
     const response = await call.get("trixapos.api.item_api.get_items", {
       page,
       page_size: pageSize,
       category,
       search_term: searchTerm,
+      customer, // ✅ Pass customer to fetch correct price list
     });
 
-    console.log("API Response:", response); // Debugging API response
+    console.log("Products API Response:", response); // 🔍 Debugging API response
 
-    if (!response || !response.message || !Array.isArray(response.message.items)) {
-      console.error("Invalid API Response Format:", response);
-      throw new Error("Invalid API response format");
+    // ✅ Handle different response structures with proper default values
+    if (response?.items && Array.isArray(response.items)) {
+      return {
+        items: response.items,
+        nextPage: response.next_page ?? null,
+        price_list_used: response.price_list_used || "Standard Selling",
+        using_standard_price: response.using_standard_price === true,
+      };
     }
 
-    const data: Item[] = response.message.items || [];
-    const nextPage: number | null = response.message.next_page ?? null;
+    if (response?.message?.items && Array.isArray(response.message.items)) {
+      return {
+        items: response.message.items,
+        nextPage: response.message.next_page ?? null,
+        price_list_used: response.message.price_list_used || "Standard Selling",
+        using_standard_price: response.message.using_standard_price === true,
+      };
+    }
 
-    return { items: data, nextPage };
+    // ❌ Unexpected response format
+    console.error("Invalid API Response Format for Products:", response);
+    throw new Error("Invalid API response format for products.");
   } catch (error: any) {
-    console.error("Full Error Object:", error);
     console.error("Error fetching products:", error?.message || "Unknown Error");
-    return { items: [], nextPage: null };
+    return { 
+      items: [], 
+      nextPage: null,
+      price_list_used: "Standard Selling",
+      using_standard_price: true,
+    };
   }
 }

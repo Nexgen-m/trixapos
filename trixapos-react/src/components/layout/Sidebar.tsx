@@ -77,7 +77,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
       {/* Scrollable Categories */}
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-gray-900">
         <div className="p-2">
-          {/* All Categories Option */}
+          {/* All Categories Option without Count */}
           <button
             className={`w-full text-left px-4 py-3 rounded-lg transition-all duration-200 font-medium ${
               !selectedCategory
@@ -86,7 +86,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
             }`}
             onClick={() => handleCategoryClick("")}
           >
-            All Categories
+            <span>All Categories</span>
           </button>
 
           {loading ? (
@@ -139,6 +139,3 @@ export function Sidebar({ isOpen }: SidebarProps) {
     </div>
   );
 }
-
-
-

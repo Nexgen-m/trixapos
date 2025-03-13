@@ -12,6 +12,7 @@ interface OrderSummaryProps {
   totalAfterDiscount: number;
   formatCurrency: (amount: number) => string;
   onClose: () => void;
+  loyaltyCard?: string; // NEW: Added loyalty card prop
 }
 
 export function OrderSummary({
@@ -22,8 +23,12 @@ export function OrderSummary({
   itemDiscounts,
   totalAfterDiscount,
   formatCurrency,
-  onClose
+  onClose,
+  loyaltyCard // NEW: Added loyalty card parameter
 }: OrderSummaryProps) {
+  // Calculate loyalty points (example: 1 point per dollar spent)
+  const estimatedPoints = loyaltyCard ? Math.floor(totalAfterDiscount) : 0;
+
   return (
     <div className="absolute inset-0 bg-white flex flex-col z-20 overflow-hidden">
       <DialogHeader className="p-4 border-b flex items-center gap-3 sticky top-0 bg-white z-10">
@@ -37,6 +42,22 @@ export function OrderSummary({
       </DialogHeader>
 
       <div className="p-4 overflow-y-auto flex-1">
+        {/* Loyalty Card Info (If Available) */}
+        {loyaltyCard && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-blue-800">Loyalty Card</p>
+                <p className="text-xs text-blue-700">{loyaltyCard}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium text-blue-800">Points to be earned</p>
+                <p className="text-lg font-bold text-blue-700">{estimatedPoints}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Items List */}
         <div className="grid grid-cols-5 py-2 border-b text-sm font-medium text-gray-500">
           <div className="col-span-1">Product Name</div>

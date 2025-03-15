@@ -49,7 +49,7 @@
 //       // },
 //     ]
 //   },
-  
+
 //   {
 //     path: "/",
 //     element: <Navigate to="/trixapos" replace />
@@ -71,7 +71,6 @@
 //   }
 // ]);
 
-
 import React from "react";
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import { LoginScreen } from "./screens/LoginScreen";
@@ -82,15 +81,16 @@ import { POSProfileCheck } from "./components/POSProfileCheck";
 import { AuthGuard } from "./components/AuthGuard";
 import { MainLayout } from "./components/MainLayout";
 import { OrderPage } from "./screens/OrdersPage";
+import OrderScreen from "./screens/OrderScreen";
 
 export const router = createBrowserRouter([
   {
     path: "/trixapos/login",
-    element: <LoginScreen />
+    element: <LoginScreen />,
   },
   {
     path: "/trixapos/unauthorized",
-    element: <UnauthorizedScreen />
+    element: <UnauthorizedScreen />,
   },
   {
     path: "/trixapos",
@@ -104,33 +104,48 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true, // Default route
-        element: <POSScreen />
+        element: <POSScreen />,
       },
+      // {
+      //   // index: true, // Default child route
+      //   path: "/trixapos/OrderPage",
+      //   element: <OrderPage />,
+      // },
+      // {
+      //   // index: true, // Default child route
+      //   path: "/trixapos/OrderPage",
+      //   element: <OrderPage />
+      // },
+      // Add other child routes here if needed
+      // Example:
+      // {
+      //   path: "reports",
+      //   element: <ReportsScreen />
+      // },
       {
         path: "vertical", // New Vertical POS Route
-        element: <VerticalPOSScreen />
-      }
-      
-    ]
+        element: <VerticalPOSScreen />,
+      },
+    ],
   },
   {
-    path: "/trixapos/OrderPage",
-    element: <OrderPage />
+    path: "/trixapos/OrderScreen",
+    element: <OrderScreen />,
   },
   {
     path: "/",
-    element: <Navigate to="/trixapos" replace />
+    element: <Navigate to="/trixapos" replace />,
   },
   {
     path: "/login",
-    element: <Navigate to="/trixapos/login" replace />
+    element: <Navigate to="/trixapos/login" replace />,
   },
   {
     path: "/unauthorized",
-    element: <Navigate to="/trixapos/unauthorized" replace />
+    element: <Navigate to="/trixapos/unauthorized" replace />,
   },
   {
     path: "*",
-    element: <Navigate to="/trixapos/login" replace />
-  }
+    element: <Navigate to="/trixapos/login" replace />,
+  },
 ]);

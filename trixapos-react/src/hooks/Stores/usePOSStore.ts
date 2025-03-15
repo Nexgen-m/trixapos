@@ -3,6 +3,19 @@ import { CartItem, Customer } from "../../types/pos";
 import { toast } from "sonner";
 import { redirect } from "react-router-dom";
 
+// Define a new type for orders
+interface Order {
+  id: string;
+  timestamp: number; // timestamp in milliseconds (or change to string if needed)
+  total: number;
+  items: ExtendedCartItem[];
+  note?: string;
+  paymentMethod?: string;
+  reason?: string;
+  rejectedBy?: string;
+  customer?: string | Customer;
+}
+
 interface ExtendedCartItem extends CartItem {
   discount?: number; // Percentage-based discount
 }
@@ -46,7 +59,14 @@ interface POSStore {
   clearCart: () => void;
   initializeCart: () => void;
   calculateTotal: () => number;
-  
+
+  // New properties for OrdersScreen functionality
+  heldOrders: Order[];
+  completedOrders: Order[];
+  rejectedOrders: Order[];
+  loadHeldOrder: (id: string) => void;
+  removeHeldOrder: (id: string) => void;
+  resendOrderEmail: (orderId: string, email: string) => Promise<void>;
 }
 
 export const usePOSStore = create<POSStore>((set, get) => ({
@@ -66,9 +86,6 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       localStorage.setItem("isVerticalLayout", JSON.stringify(newLayout));
       return { isVerticalLayout: newLayout };
     });
-
-    // Optional: Update in POS Profile API if needed
-    // await updateCustomDisplayMode(get().isVerticalLayout ? "Vertical Mode" : "Horizontal Mode");
   },
   // Toggle layout between horizontal and vertical
   
@@ -172,6 +189,33 @@ export const usePOSStore = create<POSStore>((set, get) => ({
 
   getDraftOrders: () => {
     return JSON.parse(localStorage.getItem("draftOrders") || "[]");
+  },
+
+  // New OrdersScreen properties and actions
+  heldOrders: [],
+  completedOrders: [],
+  rejectedOrders: [],
+  loadHeldOrder: (id: string) => {
+    const order = get().heldOrders.find((o) => o.id === id);
+    if (order) {
+      // For example, set the cart to the order's items and total
+      set({ cart: order.items, total: order.total });
+      toast.success(`Loaded held order ${order.id}`);
+    } else {
+      toast.error("Held order not found.");
+    }
+  },
+  removeHeldOrder: (id: string) => {
+    set((state) => {
+      const updatedHeldOrders = state.heldOrders.filter((o) => o.id !== id);
+      toast.success(`Removed held order ${id}`);
+      return { heldOrders: updatedHeldOrders };
+    });
+  },
+  resendOrderEmail: async (orderId: string, email: string) => {
+    // Simulate sending an email
+    toast.success(`Email sent for order ${orderId} to ${email}`);
+    return Promise.resolve();
   },
 
   // Set compact mode
@@ -342,7 +386,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       customer: null,
       orderDiscount: 0,
       selectedCategory: "",
-      total: 0, // Explicitly set total to 0
+      total: 0,
     });
 
     // ✅ Clear localStorage/sessionStorage

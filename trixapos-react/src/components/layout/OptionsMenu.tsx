@@ -539,6 +539,7 @@ export function OptionsMenu() {
           <button
             className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
             onClick={() => {}}
+<<<<<<< HEAD
           >
             <FileText className="h-5 w-5 text-gray-600" /> <span className="ml-2">Open Form View</span>
           </button>
@@ -548,6 +549,21 @@ export function OptionsMenu() {
           >
             <Save className="h-5 w-5 text-gray-600" /> <span className="ml-2">Save as Draft</span>
           </button>
+=======
+          />
+          <OptionMenuItem 
+            label="Toggle Recent Orders" 
+            shortcut="Ctrl+O"
+            icon={<Clock className="h-5 w-5 text-gray-600" />}
+            onClick={() => navigate("/trixapos/OrderPage")}
+          />
+          <OptionMenuItem 
+            label="Save as Draft" 
+            shortcut="Ctrl+S"
+            icon={<Save className="h-5 w-5 text-gray-600" />}
+            onClick={() => {}}
+          />
+>>>>>>> 6059a2f (Implemented the hold system)
           <div className="border-t my-2"></div>
           <button
             className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base font-medium"

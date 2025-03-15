@@ -11,13 +11,7 @@ fixtures = [
     },
      {
         "doctype": "Client Script",
-        "filters": [
-            [
-                "name",
-                "=", 
-                "POS Profile - Disable Max Discount Field"
-            ]
-        ]
+        
     }
 ]
 

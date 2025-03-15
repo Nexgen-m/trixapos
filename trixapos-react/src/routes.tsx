@@ -1,41 +1,3 @@
-// // import { createBrowserRouter, createRoutesFromElements, Route, Navigate } from "react-router-dom";
-// // import { MainLayout } from "./components/MainLayout";
-// // import { POSScreen } from "./screens/POSScreen";
-// // import { LoginScreen } from "./screens/LoginScreen";
-// // import { useFrappeAuth } from "frappe-react-sdk";
-// // import { useEffect, JSX } from "react";
-
-// // // ✅ Authentication Guard
-// // const AuthGuard = ({ children }: { children: JSX.Element }) => {
-// //   const { currentUser, isLoading, updateCurrentUser } = useFrappeAuth();
-
-// //   useEffect(() => {
-// //     updateCurrentUser(); // ✅ Calls `/api/method/frappe.auth.get_user_info`
-// //   }, []);
-
-// //   if (isLoading) {
-// //     return <div className="flex justify-center items-center h-screen">Loading...</div>;
-// //   }
-
-// //   return currentUser ? children : <Navigate to="/login" />;
-// // };
-
-// // // ✅ Updated Router
-// // export const router = createBrowserRouter(
-// //   createRoutesFromElements(
-// //     <>
-// //       <Route path="/" element={<Navigate to="/trixapos" />} />
-// //       <Route path="/login" element={<LoginScreen />} />
-// //       <Route path="/trixapos" element={<AuthGuard><MainLayout /></AuthGuard>}>
-// //         <Route index element={<POSScreen />} />
-// //       </Route>
-// //       <Route path="*" element={<div className="text-center p-10">404 - Page Not Found</div>} />
-// //     </>
-// //   ),
-// //   { basename: "/trixapos" }
-// // );
-
-
 // import React from "react";
 // import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 // import { LoginScreen } from "./screens/LoginScreen";
@@ -84,11 +46,11 @@ import { MainLayout } from "./components/MainLayout";
 
 export const router = createBrowserRouter([
   {
-    path: "/login",
+    path: "/trixapos/login",
     element: <LoginScreen />
   },
   {
-    path: "/unauthorized",
+    path: "/trixapos/unauthorized",
     element: <UnauthorizedScreen />
   },
   {
@@ -118,8 +80,18 @@ export const router = createBrowserRouter([
     element: <Navigate to="/trixapos" replace />
   },
   {
+    // For old /login path - redirect to new path
+    path: "/login",
+    element: <Navigate to="/trixapos/login" replace />
+  },
+  {
+    // For old /unauthorized path - redirect to new path
+    path: "/unauthorized",
+    element: <Navigate to="/trixapos/unauthorized" replace />
+  },
+  {
     // Catch-all route
     path: "*",
-    element: <Navigate to="/login" replace />
+    element: <Navigate to="/trixapos/login" replace />
   }
 ]);

@@ -12,7 +12,10 @@ interface POSStore {
   total: number;
   orderDiscount: number;
   selectedCategory: string;
-  isVerticalLayout: boolean; // New state for layout preference
+  isVerticalLayout: boolean; // Layout preference
+  isCompactMode: boolean; // Compact view mode
+  
+  // Actions
   addToCart: (item: ExtendedCartItem) => void;
   removeFromCart: (itemCode: string) => void;
   updateQuantity: (itemCode: string, qty: number) => void;
@@ -23,7 +26,8 @@ interface POSStore {
     discount?: number
   ) => void;
   setCustomer: (customer: Customer | null) => void;
-  toggleLayout: () => void; // New function to toggle layouts
+  toggleLayout: () => void; // Toggle layouts
+  setIsCompactMode: (value: boolean) => void; // Set compact mode
   setOrderDiscount: (discount: number) => void;
   setSelectedCategory: (category: string) => void;
   clearCart: () => void;
@@ -38,11 +42,20 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   orderDiscount: 0,
   selectedCategory: "",
   isVerticalLayout: false, // Default to horizontal layout
+  isCompactMode: false, // Default to full view mode
 
+  // Toggle layout between vertical and horizontal
   toggleLayout: () =>
     set((state) => {
       localStorage.setItem("isVerticalLayout", JSON.stringify(!state.isVerticalLayout));
       return { isVerticalLayout: !state.isVerticalLayout };
+    }),
+    
+  // Set compact mode
+  setIsCompactMode: (value) => 
+    set(() => {
+      localStorage.setItem("compactMode", JSON.stringify(value));
+      return { isCompactMode: value };
     }),
 
   calculateTotal: () => {
@@ -173,16 +186,10 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   },
 
   /** 👤 Set Customer */
-  // setCustomer: (customer) => {
-  //   console.log("Setting customer:", customer); // ✅ Debugging step
-  //   set({ customer });
-  // },
   setCustomer: (customer) => {
     set({ customer }); // ✅ Update the selected customer globally
     toast.success(`Customer updated: ${customer?.customer_name || "None"}`);
   },
-
-  
 
   /** 📂 Set Active Category */
   setSelectedCategory: (category) => set({ selectedCategory: category }),
@@ -204,6 +211,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
 
   /** 🔄 Initialize Cart from Local Storage */
   initializeCart: () => {
+    // Initialize cart
     const savedCart = localStorage.getItem("cart");
     if (savedCart) {
       try {
@@ -218,5 +226,14 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         localStorage.removeItem("cart"); // Remove invalid data
       }
     }
+    
+    // Initialize UI settings
+    const compactMode = localStorage.getItem("compactMode") === "true";
+    const verticalLayout = localStorage.getItem("isVerticalLayout") === "true";
+    
+    set({
+      isCompactMode: compactMode,
+      isVerticalLayout: verticalLayout
+    });
   },
 }));

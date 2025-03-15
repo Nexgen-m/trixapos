@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { CartItem, Customer } from '../../types/pos';
 import { toast } from 'sonner';
+import { redirect } from 'react-router-dom';
 
 interface ExtendedCartItem extends CartItem {
   discount?: number; // Percentage-based discount
@@ -14,6 +15,13 @@ interface POSStore {
   selectedCategory: string;
   isVerticalLayout: boolean; // Layout preference
   isCompactMode: boolean; // Compact view mode
+  // new code for hold order
+  holdOrder: (draftName: string, total: number) => void;
+  restoreDraftOrder: (draftName: string) => void;
+  deleteDraftOrder: (draftName: string) => void;
+  getDraftOrders: () => {
+      date: Date; name: string; cart: ExtendedCartItem[], total: number
+}[];
   
   // Actions
   addToCart: (item: ExtendedCartItem) => void;
@@ -42,7 +50,83 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   orderDiscount: 0,
   selectedCategory: "",
   isVerticalLayout: false, // Default to horizontal layout
-  isCompactMode: false, // Default to full view mode
+  isCompactMode: false, // Default to full view mode 
+  // new code for hold order functionality
+  holdOrder: (draftName, total) => {
+    set((state) => {
+      if (!state.cart.length) {
+        toast.error("Cannot hold an empty cart.");
+        return {};
+      }
+  
+      // Get existing drafts from localStorage
+      const existingDrafts = JSON.parse(localStorage.getItem("draftOrders") || "[]");
+
+      // Add new draft to the list
+      const newDraft = { date: Date.now().toString(), name: draftName, cart: state.cart, total: total };
+      const updatedDrafts = [...existingDrafts, newDraft];
+  
+      // Save drafts to localStorage
+      localStorage.setItem("draftOrders", JSON.stringify(updatedDrafts));
+  
+      toast.success(`Order "${draftName}" is on hold.`);
+
+      // redirect('trixapos/OrdersPage')
+      
+      // Clear the current cart after saving
+      return { cart: [], total: 0 };
+    });
+  },
+
+
+  restoreDraftOrder: (draftName) => {
+    set((state) => {
+      // Get drafts from localStorage
+      const existingDrafts = JSON.parse(localStorage.getItem("draftOrders") || "[]");
+  
+      // Find the draft by name
+      const draft = existingDrafts.find((d) => d.name === draftName);
+      if (!draft) {
+        toast.error("Draft order not found.");
+        return {};
+      }
+  
+      // Remove the draft after restoring
+      // const updatedDrafts = existingDrafts.filter((d) => d.name !== draftName);
+      // localStorage.setItem("draftOrders", JSON.stringify(updatedDrafts));
+  
+      toast.success(`Draft "${draftName}" restored.`);
+  
+      return { date: draft.date, name: draft.name, cart: draft.cart, total: draft.total };
+    });
+  
+    // Recalculate total
+    const newTotal = get().calculateTotal();
+    set({ total: newTotal });
+  },
+
+  
+  deleteDraftOrder: (draftName) => {
+    set(() => {
+      // Get existing drafts
+      const existingDrafts = JSON.parse(localStorage.getItem("draftOrders") || "[]");
+  
+      // Remove the selected draft
+      const updatedDrafts = existingDrafts.filter((d) => d.name !== draftName);
+  
+      // Save updated drafts
+      localStorage.setItem("draftOrders", JSON.stringify(updatedDrafts));
+  
+      toast.success(`Draft "${draftName}" deleted.`);
+      return {};
+    });
+  },
+
+  
+  getDraftOrders: () => {
+    return JSON.parse(localStorage.getItem("draftOrders") || "[]");
+  },
+  
 
   // Toggle layout between vertical and horizontal
   toggleLayout: () =>

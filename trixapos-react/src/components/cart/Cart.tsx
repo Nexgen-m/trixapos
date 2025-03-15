@@ -7,7 +7,7 @@ import { Calculator as CalculatorComponent } from "../calculator/Calculator";
 import { PaymentPage } from "../payment/PaymentPage";
 
 export function Cart() {
-  const { cart, clearCart, orderDiscount } = usePOSStore();
+  const { cart, clearCart, orderDiscount, holdOrder } = usePOSStore();
 
   // State to control calculator dialog
   const [isCalculatorOpen, setCalculatorOpen] = useState(false);
@@ -33,9 +33,9 @@ export function Cart() {
   // Count total items in the cart
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
-  const holdOrder = () => {
-    console.log("Order held for later.");
-  };
+  // const holdOrder = () => {
+  //   console.log("Order held for later.");
+  // };
 
   return (
     <div className="h-full flex flex-col">
@@ -135,7 +135,7 @@ export function Cart() {
               variant="outline"
               className="bg-yellow-600 text-white hover:bg-yellow-700 disabled:bg-gray-700"
               disabled={cart.length === 0}
-              onClick={holdOrder}
+              onClick={() => holdOrder(('#' + Math.random().toString().slice(0,4)), total)}
             >
               <PauseCircle className="w-4 h-4" /> Hold
             </Button>

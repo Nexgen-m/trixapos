@@ -43,6 +43,7 @@ import { UnauthorizedScreen } from "./screens/UnauthorizedScreen";
 import { POSProfileCheck } from "./components/POSProfileCheck";
 import { AuthGuard } from "./components/AuthGuard";
 import { MainLayout } from "./components/MainLayout";
+import { OrderPage } from "./screens/OrdersPage";
 
 export const router = createBrowserRouter([
   {
@@ -67,6 +68,16 @@ export const router = createBrowserRouter([
         index: true, // Default child route
         element: <POSScreen />
       },
+      {
+        // index: true, // Default child route
+        path: "/trixapos/OrderPage",
+        element: <OrderPage />
+      },
+      // {
+      //   // index: true, // Default child route
+      //   path: "/trixapos/OrderPage",
+      //   element: <OrderPage />
+      // },
       // Add other child routes here if needed
       // Example:
       // {
@@ -75,6 +86,7 @@ export const router = createBrowserRouter([
       // },
     ]
   },
+  
   {
     path: "/",
     element: <Navigate to="/trixapos" replace />

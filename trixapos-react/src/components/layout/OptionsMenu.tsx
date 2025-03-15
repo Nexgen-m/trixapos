@@ -453,7 +453,7 @@ export function OptionsMenu() {
             label="Toggle Recent Orders" 
             shortcut="Ctrl+O"
             icon={<Clock className="h-5 w-5 text-gray-600" />}
-            onClick={() => {}}
+            onClick={() => navigate("/trixapos/OrderPage")}
           />
           <OptionMenuItem 
             label="Save as Draft" 

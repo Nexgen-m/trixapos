@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Menu, Clock } from "lucide-react";
 import { OptionsMenu } from "./OptionsMenu";
+// import { useNavigate } from "react-router-dom";
 
 interface TopBarProps {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
   username: string;
+  route: string;
 }
 
-export function TopBar({ isSidebarOpen, setIsSidebarOpen, username }: TopBarProps) {
+export function TopBar({ isSidebarOpen, setIsSidebarOpen, username, route }: TopBarProps) {
   const [currentTime, setCurrentTime] = useState<string>("");
+
+  const isOrderPage = route === "/trixapos/OrderPage";
 
   useEffect(() => {
     const updateClock = () => {
@@ -34,12 +38,14 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, username }: TopBarProp
     <div className="bg-blue-600 text-white flex items-center justify-between px-4 py-2 relative">
       {/* Left Side - Sidebar Toggle and Title */}
       <div className="flex items-center gap-4">
+        {isOrderPage ? (<div className="hidden"></div>) : (
         <button
           onClick={() => setIsSidebarOpen(!isSidebarOpen)}
           className="p-1 hover:bg-blue-700 rounded-lg transition-colors"
         >
           <Menu className="h-5 w-5" />
         </button>
+        ) }
         <span className="text-lg font-bold">TRIXAPOS</span>
       </div>
 

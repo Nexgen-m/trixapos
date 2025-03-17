@@ -15,10 +15,11 @@ type draftCardProps = {
     cart: ExtendedCartItem[];
     total: number;
     deleteDraft: (name: string) => void;
+    customer: string;
 }
 
 
-const DraftCard:React.FC<draftCardProps> = ({date, name, cart, total, deleteDraft}) => {
+const DraftCard:React.FC<draftCardProps> = ({date, name, cart, total, deleteDraft, customer}) => {
 
 
     const navigate = useNavigate();
@@ -49,7 +50,7 @@ const DraftCard:React.FC<draftCardProps> = ({date, name, cart, total, deleteDraf
             <button onClick={handleClick} className="w-full h-full flex flex-col justify-center items-center">
                 <div>
                 <span className="text-lg">
-                    {date.toString()}
+                    {new Date(date).toLocaleDateString('en-US')}
                 </span>
                     <br className="my-2"/>
                     <p className="text-gray-500">

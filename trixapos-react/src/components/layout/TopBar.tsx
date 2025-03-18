@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Menu, Clock } from "lucide-react";
 import { OptionsMenu } from "./OptionsMenu";
+import { Link } from "react-router-dom";
 // import { useNavigate } from "react-router-dom";
 
 interface TopBarProps {
@@ -13,7 +14,7 @@ interface TopBarProps {
 export function TopBar({ isSidebarOpen, setIsSidebarOpen, username, route }: TopBarProps) {
   const [currentTime, setCurrentTime] = useState<string>("");
 
-  const isOrderPage = route === "/trixapos/OrderPage";
+  const isOrderPage = route === "/trixapos/OrderScreen";
 
   useEffect(() => {
     const updateClock = () => {
@@ -46,7 +47,7 @@ export function TopBar({ isSidebarOpen, setIsSidebarOpen, username, route }: Top
           <Menu className="h-5 w-5" />
         </button>
         ) }
-        <span className="text-lg font-bold">TRIXAPOS</span>
+        <Link to={'/trixapos'}><span className="text-lg font-bold">TRIXAPOS</span></Link>
       </div>
 
       {/* Centered Clock */}

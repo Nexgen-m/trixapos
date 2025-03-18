@@ -1,41 +1,61 @@
 import React, { useState } from "react";
 import { usePOSStore } from "../../hooks/Stores/usePOSStore";
 import { CartItem } from "./CartItem";
-import { ShoppingCart, Package, Receipt, Calculator, Trash2, PauseCircle } from "lucide-react";
+import {
+  ShoppingCart,
+  Package,
+  Receipt,
+  Calculator,
+  Trash2,
+  PauseCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calculator as CalculatorComponent } from "../calculator/Calculator";
 import { PaymentPage } from "../payment/PaymentPage";
+import { PrePaymentPage } from "../payment/PrePaymentPage"; // Import PrePaymentPage
+import { HoldOrderDialog } from "../orders/HoldOrderDialog"; // Import the HoldOrderDialog
 
 export function Cart() {
-  const { cart, clearCart, orderDiscount, holdOrder } = usePOSStore();
+  const [isHoldDialogOpen, setHoldDialogOpen] = useState(false); // State for HoldOrderDialog
+  const [isPrePaymentOpen, setIsPrePaymentOpen] = useState(false); // State for PrePaymentPage
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false); // State for PaymentPage
+  const [isCalculatorOpen, setCalculatorOpen] = useState(false); // State for Calculator
 
-  // State to control calculator dialog
-  const [isCalculatorOpen, setCalculatorOpen] = useState(false);
-
-  // State to control payment dialog
-  const [isPaymentOpen, setPaymentOpen] = useState(false);
+  const { cart, clearCart, orderDiscount, holdOrder, total } = usePOSStore();
 
   // Calculate subtotal (price * quantity for all items)
-  const subtotal = cart.reduce((sum, item) => sum + (item.price_list_rate * item.qty), 0);
+  const subtotal = cart.reduce(
+    (sum, item) => sum + item.price_list_rate * item.qty,
+    0
+  );
 
   // Calculate Item Discount as percentage-based
   const itemDiscountAmount = cart.reduce(
-    (sum, item) => sum + ((item.price_list_rate * item.qty) * (item.discount || 0)) / 100,
+    (sum, item) =>
+      sum + (item.price_list_rate * item.qty * (item.discount || 0)) / 100,
     0
   );
-  
+
   // Calculate order discount amount based on percentage
-  const orderDiscountAmount = (subtotal - itemDiscountAmount) * (orderDiscount / 100);
+  const orderDiscountAmount =
+    (subtotal - itemDiscountAmount) * (orderDiscount / 100);
 
   // Calculate final total after both item discounts and order discount
-  const total = subtotal - itemDiscountAmount - orderDiscountAmount;
+  const totalAfterDiscounts = subtotal - itemDiscountAmount - orderDiscountAmount;
 
   // Count total items in the cart
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
 
-  // const holdOrder = () => {
-  //   console.log("Order held for later.");
-  // };
+  // Handle Pay button click
+  const handlePayClick = () => {
+    setIsPrePaymentOpen(true); // Open PrePaymentPage
+  };
+
+  // Handle PrePaymentPage close (Skip or Proceed)
+  const handlePrePaymentClose = () => {
+    setIsPrePaymentOpen(false); // Close PrePaymentPage
+    setIsPaymentOpen(true); // Open PaymentPage
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -74,7 +94,14 @@ export function Cart() {
         ) : (
           <div className="divide-y divide-gray-800">
             {cart.map((item) => (
-              <CartItem key={item.item_code} item={{ ...item, uom: item.uom || "", warehouse: item.warehouse || "" }} />
+              <CartItem
+                key={item.item_code}
+                item={{
+                  ...item,
+                  uom: item.uom || "",
+                  warehouse: item.warehouse || "",
+                }}
+              />
             ))}
           </div>
         )}
@@ -93,7 +120,7 @@ export function Cart() {
               <span>Item Discount</span>
               <span>-${itemDiscountAmount.toFixed(2)}</span>
             </div>
-            
+
             {/* Order Discount Display */}
             {orderDiscount > 0 && (
               <div className="flex justify-between">
@@ -101,7 +128,7 @@ export function Cart() {
                 <span>-${orderDiscountAmount.toFixed(2)}</span>
               </div>
             )}
-            
+
             <div className="flex justify-between">
               <span>Tax</span>
               <span>$0.00</span>
@@ -112,7 +139,9 @@ export function Cart() {
           <div className="pt-3 border-t border-gray-800">
             <div className="flex items-center justify-between">
               <span className="text-gray-300">Total</span>
-              <span className="text-xl font-bold text-blue-400">${Math.max(0, total).toFixed(2)}</span>
+              <span className="text-xl font-bold text-blue-400">
+                ${Math.max(0, totalAfterDiscounts).toFixed(2)}
+              </span>
             </div>
           </div>
 
@@ -135,7 +164,7 @@ export function Cart() {
               variant="outline"
               className="bg-yellow-600 text-white hover:bg-yellow-700 disabled:bg-gray-700"
               disabled={cart.length === 0}
-              onClick={() => holdOrder(('#' + Math.random().toString().slice(0,4)), total)}
+              onClick={() => setHoldDialogOpen(true)} // Open the HoldOrderDialog
             >
               <PauseCircle className="w-4 h-4" /> Hold
             </Button>
@@ -150,12 +179,12 @@ export function Cart() {
               <Calculator className="w-4 h-4" /> Calc
             </Button>
 
-            {/* Pay Button - Opens Payment Dialog */}
+            {/* Pay Button - Opens PrePaymentPage */}
             <Button
               size="sm"
               className="bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-800 disabled:text-gray-400"
               disabled={cart.length === 0}
-              onClick={() => setPaymentOpen(true)} // Open payment dialog
+              onClick={handlePayClick} // Open PrePaymentPage
             >
               Pay
             </Button>
@@ -169,11 +198,24 @@ export function Cart() {
         onClose={() => setCalculatorOpen(false)}
       />
 
-      {/* Payment Dialog - Pass Total to PaymentPage */}
-      <PaymentPage 
+      {/* PrePaymentPage */}
+      <PrePaymentPage
+        isOpen={isPrePaymentOpen}
+        onClose={handlePrePaymentClose} // Skip or Proceed triggers this
+        onProceed={handlePrePaymentClose} // Proceed triggers this
+        total={totalAfterDiscounts}
+      />
+
+      {/* PaymentPage */}
+      <PaymentPage
         isOpen={isPaymentOpen}
-        onClose={() => setPaymentOpen(false)}
-        // total={total}  // Already accessed through store
+        onClose={() => setIsPaymentOpen(false)}
+      />
+
+      {/* HoldOrderDialog */}
+      <HoldOrderDialog
+        isOpen={isHoldDialogOpen}
+        onClose={() => setHoldDialogOpen(false)}
       />
     </div>
   );

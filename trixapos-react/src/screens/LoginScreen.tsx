@@ -98,6 +98,7 @@ import { Store } from "lucide-react";
 import { useFrappeAuth } from "frappe-react-sdk";
 
 export function LoginScreen() {
+  
   const { login, currentUser, isLoading, error: authError } = useFrappeAuth();
   const [credentials, setCredentials] = useState({ username: "", password: "" });
   const [error, setError] = useState<string>("");

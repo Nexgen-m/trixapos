@@ -36,10 +36,6 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
-  
-  // New loyalty card state
-  const [loyaltyCard, setLoyaltyCard] = useState('');
-  const [loyaltyCardScanned, setLoyaltyCardScanned] = useState(false);
 
   // Ensure valid cart total
   const validCartTotal = cartTotal || 0;
@@ -116,18 +112,6 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
     setOrderDiscountPercentage(value);
     setOrderDiscount(value);
   };
-  
-  const handleLoyaltyCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setLoyaltyCard(e.target.value);
-  };
-
-  const handleScanLoyaltyCard = () => {
-    // This function would handle actual scanning in a real implementation
-    // For now just mark as scanned if there's a valid loyalty card number
-    if (loyaltyCard && loyaltyCard.trim().length > 0) {
-      setLoyaltyCardScanned(true);
-    }
-  };
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -150,8 +134,6 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
       setPaymentComplete(false);
       setShowSummary(false);
       setIsCalculatorOpen(false);
-      setLoyaltyCard('');
-      setLoyaltyCardScanned(false);
       // Initialize order discount from store
       setOrderDiscountPercentage(storeOrderDiscount || 0);
     }
@@ -210,9 +192,7 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
                 formatCurrency={formatCurrency}
                 change={change}
                 remaining={remaining}
-                loyaltyCard={loyaltyCardScanned ? loyaltyCard : undefined}
               />
-
 
               <PaymentMethods 
                 selectedMethod={selectedMethod} 
@@ -234,44 +214,6 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
                   max={maxDiscountAllowed} // ✅ Restrict max input
                   readOnly={!canEditAdditionalDiscount}
                 />
-              </div>
-
-
-
-
-              {/* Loyalty Card Scanner Section */}
-              <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Loyalty Card</label>
-                <div className="flex gap-2">
-                  <Input
-                    type="text"
-                    value={loyaltyCard}
-                    onChange={handleLoyaltyCardChange}
-                    className="flex-1 p-2 text-lg border rounded-lg"
-                    placeholder="Enter card number"
-                    disabled={loyaltyCardScanned}
-                  />
-                  <Button 
-                    onClick={handleScanLoyaltyCard}
-                    className={`flex items-center gap-1 ${loyaltyCardScanned ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
-                    disabled={loyaltyCardScanned || !loyaltyCard}
-                  >
-                    {loyaltyCardScanned ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        Scanned
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="w-4 h-4" />
-                        Scan
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {loyaltyCardScanned && (
-                  <p className="text-sm text-green-600 mt-1">Points will be added upon payment completion</p>
-                )}
               </div>
 
               <button
@@ -325,7 +267,6 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
             totalAfterDiscount={totalAfterAllDiscounts}
             formatCurrency={formatCurrency}
             onClose={() => setShowSummary(false)}
-            loyaltyCard={loyaltyCardScanned ? loyaltyCard : undefined}
           />
         )}
       </DialogContent>

@@ -19,12 +19,18 @@ export function HoldOrderDialog({ isOpen, onClose }: HoldOrderDialogProps) {
   const { cart, total, customer, holdOrder } = usePOSStore();
   const [note, setNote] = useState("");
 
+  // HoldOrderDialog.tsx (modified snippet)
   const handleSubmit = () => {
-    const draftName = note || "Untitled Hold"; // Use note input or a default name
-    const orderTotal = total; // Get total from store
-    const customerName = customer?.customer_name || "Guest"; // Default if no customer selected
-
-    holdOrder(draftName, orderTotal, customerName); // Save the order
+    const draftName = note || "Untitled Hold";
+    const orderTotal = total;
+    // Instead of passing customer?.customer_name, we pass the full customer object.
+    // Updated fallback to include both 'name' and 'customer_name' so it satisfies the Customer type.
+    const customerData = customer || {
+      name: "Guest Customer",
+      customer_name: "Guest Customer",
+    };
+    // Ensure it matches Customer type
+    holdOrder(draftName, orderTotal, customerData); // Pass the Complete Customer object
     onClose(); // Close the dialog
   };
 
@@ -34,12 +40,7 @@ export function HoldOrderDialog({ isOpen, onClose }: HoldOrderDialogProps) {
         <DialogHeader className="p-6 border-b">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl">Hold Order</DialogTitle>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            
           </div>
         </DialogHeader>
 
@@ -85,7 +86,7 @@ export function HoldOrderDialog({ isOpen, onClose }: HoldOrderDialogProps) {
 
           {/* Action Buttons */}
           <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="flex-1" onClick={onClose}>
+            <Button variant="outline" className="flex-1 border-gray-500 hover:bg-gray-300" onClick={onClose}>
               Cancel
             </Button>
             <Button

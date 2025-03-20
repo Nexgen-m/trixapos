@@ -1,8 +1,21 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Item } from '../types/pos';
-import { Package, Tag, Box, Warehouse, Info, ChevronLeft, ChevronRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import React, { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Item } from "../types/pos";
+import {
+  Package,
+  Tag,
+  Box,
+  Warehouse,
+  Info,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface ItemInfoDialogProps {
   item: Item | null;
@@ -16,19 +29,18 @@ export function ItemInfoDialog({ item, isOpen, onClose }: ItemInfoDialogProps) {
   if (!item) return null;
 
   // Combine single image and images array
-  const allImages = [
-    item.image,
-    ...(item.images || [])
-  ].filter((img): img is string => !!img);
+  const allImages = [item.image, ...(item.images || [])].filter(
+    (img): img is string => !!img
+  );
 
   const handlePreviousImage = () => {
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === 0 ? allImages.length - 1 : prev - 1
     );
   };
 
   const handleNextImage = () => {
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === allImages.length - 1 ? 0 : prev + 1
     );
   };
@@ -110,7 +122,9 @@ export function ItemInfoDialog({ item, isOpen, onClose }: ItemInfoDialogProps) {
               {/* Details Section */}
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{item.item_name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {item.item_name}
+                  </h3>
                   <p className="text-sm text-gray-500 flex items-center gap-1.5">
                     <Tag className="w-4 h-4" />
                     {item.item_code}
@@ -132,7 +146,9 @@ export function ItemInfoDialog({ item, isOpen, onClose }: ItemInfoDialogProps) {
                     <div>
                       <div className="text-sm text-gray-600">Category</div>
                       <div className="font-medium">{item.item_group}</div>
-                      <div className="text-sm text-gray-500">{item.item_group}</div>
+                      <div className="text-sm text-gray-500">
+                        {item.item_group}
+                      </div>
                     </div>
                   </div>
 
@@ -140,16 +156,26 @@ export function ItemInfoDialog({ item, isOpen, onClose }: ItemInfoDialogProps) {
                   <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
                     <Warehouse className="w-4 h-4 text-gray-500 mt-0.5" />
                     <div>
-                      <div className="text-sm text-gray-600">Stock Quantity</div>
+                      <div className="text-sm text-gray-600">
+                        Stock Quantity
+                      </div>
                       <div className="font-medium">{item.stock_qty} units</div>
                       <div className="text-sm text-gray-500">
-                        Status: {' '}
-                        <span className={`font-medium ${
-                          item.stock_qty > 20 ? 'text-green-600' :
-                          item.stock_qty > 5 ? 'text-amber-600' : 'text-red-600'
-                        }`}>
-                          {item.stock_qty > 20 ? 'In Stock' :
-                           item.stock_qty > 5 ? 'Low Stock' : 'Very Low'}
+                        Status:{" "}
+                        <span
+                          className={`font-medium ${
+                            item.stock_qty > 20
+                              ? "text-green-600"
+                              : item.stock_qty > 5
+                              ? "text-amber-600"
+                              : "text-red-600"
+                          }`}
+                        >
+                          {item.stock_qty > 20
+                            ? "In Stock"
+                            : item.stock_qty > 5
+                            ? "Low Stock"
+                            : "Very Low"}
                         </span>
                       </div>
                     </div>
@@ -160,9 +186,9 @@ export function ItemInfoDialog({ item, isOpen, onClose }: ItemInfoDialogProps) {
               {/* Description Section */}
               <div className="md:col-span-2 border-t pt-4">
                 <h4 className="font-medium mb-2">Description</h4>
-                <div 
+                <div
                   className="text-gray-600"
-                  dangerouslySetInnerHTML={{ __html: item.description || '' }}
+                  dangerouslySetInnerHTML={{ __html: item.description || "" }}
                 />
               </div>
             </div>

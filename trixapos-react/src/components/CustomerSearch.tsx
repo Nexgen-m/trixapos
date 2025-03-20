@@ -1,5 +1,5 @@
-import React from 'react';
-import { User, X, Search, AlertTriangle } from 'lucide-react';
+import React from "react";
+import { User, X, Search, AlertTriangle } from "lucide-react";
 
 interface Customer {
   default_price_list: string | null;
@@ -32,23 +32,28 @@ export function CustomerSearch({
 }: CustomerSearchProps) {
   // Helper function to determine if customer uses standard price list
   const usesStandardPriceList = (customer: Customer) => {
-    return !customer.default_price_list || customer.default_price_list === "Standard Selling";
+    return (
+      !customer.default_price_list ||
+      customer.default_price_list === "Standard Selling"
+    );
   };
 
   return (
     <div className="w-full relative">
       {/* Hidden inputs to trick password managers */}
-      <div style={{ display: 'none', visibility: 'hidden' }}>
+      <div style={{ display: "none", visibility: "hidden" }}>
         <input type="text" name="fakeusernameremembered" />
         <input type="password" name="fakepasswordremembered" />
       </div>
 
-      {selectedCustomer ? (
+      {selectedCustomer?.customer_name ? (
         <div className="bg-gray-100 border border-gray-300 rounded-md p-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <User className="w-5 h-5 text-gray-600" />
-            <span className="text-gray-800">{selectedCustomer.customer_name}</span>
-            
+            <span className="text-gray-800">
+              {selectedCustomer.customer_name}
+            </span>
+
             {/* Only show icon, no text */}
             {usesStandardPriceList(selectedCustomer)}
           </div>
@@ -83,7 +88,7 @@ export function CustomerSearch({
 
       {isOpen && (
         <div className="absolute w-full mt-2 bg-white border rounded-md shadow-lg max-h-64 overflow-y-auto z-[9999]">
-        {filteredCustomers.slice(0, 10).length > 0 ? (
+          {filteredCustomers.slice(0, 10).length > 0 ? (
             filteredCustomers.slice(0, 10).map((customer) => (
               <button
                 key={customer.name}
@@ -92,14 +97,18 @@ export function CustomerSearch({
               >
                 <User className="w-4 h-4 text-gray-400" />
                 <div className="flex-1">
-                  <p className="font-medium text-gray-800">{customer.customer_name}</p>
+                  <p className="font-medium text-gray-800">
+                    {customer.customer_name}
+                  </p>
                   <p className="text-sm text-gray-600">{customer.territory}</p>
                 </div>
                 {usesStandardPriceList(customer)}
               </button>
             ))
           ) : (
-            <div className="px-4 py-2 text-gray-500 text-center">No customers found</div>
+            <div className="px-4 py-2 text-gray-500 text-center">
+              No customers found
+            </div>
           )}
         </div>
       )}

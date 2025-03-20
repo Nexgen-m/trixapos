@@ -7,6 +7,12 @@ import {
   Smartphone 
 } from 'lucide-react';
 
+import cashmatic from '@/assets/cashmatic-icon.png';
+
+// const CashmaticIcon = () => (
+//   <img src={cashmatic} alt="Cashmatic" className="w-6 h-6" />
+// );
+
 export type PaymentMethod = {
   id: string;
   name: string;
@@ -27,11 +33,18 @@ export const PAYMENT_METHODS: PaymentMethod[] = [
     icon: React.createElement(CreditCard, { className: "w-6 h-6" }),
     color: 'bg-blue-500'
   },
+  // { 
+  //   id: 'wallet', 
+  //   name: 'E-Wallet', 
+  //   icon: React.createElement(Wallet, { className: "w-6 h-6" }),
+  //   color: 'bg-purple-500'
+  // },
   { 
-    id: 'wallet', 
-    name: 'E-Wallet', 
+    id: 'cashmatic', 
+    name: 'Cashmatic', 
     icon: React.createElement(Wallet, { className: "w-6 h-6" }),
-    color: 'bg-purple-500'
+    // icon: <CashmaticIcon />,
+    color: 'bg-white'
   },
   { 
     id: 'mobile', 

@@ -37,6 +37,14 @@ export function OptionsMenu() {
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const navigate = useNavigate();
+  const {
+    custom_enable_recent_orders,
+    custom_enable_form_view,
+    custom_enable_save_as_draft,
+    custom_enable_display_settings,
+    custom_enable_close_pos,
+  } = usePOSProfile();
+
 
   // Get values from POS store
   const isCompactMode = usePOSStore((state) => state.isCompactMode);
@@ -53,49 +61,43 @@ export function OptionsMenu() {
     enableCompactModeOption,
   } = usePOSProfile();
 
-  /**
-   * Set Layout (Vertical or Horizontal)
-   *
-   * The change: when setting Horizontal Mode (vertical = false),
-   * we force compact mode so that sidebars (e.g. the CustomerSelector)
-   * are hidden. In Vertical mode, we reset to full mode.
-   */
+  // Local state for temporary changes
+  const [tempIsVerticalLayout, setTempIsVerticalLayout] = useState(isVerticalLayout);
+  const [tempIsCompactMode, setTempIsCompactMode] = useState(isCompactMode);
+  const [tempIsFullScreenMode, setTempIsFullScreenMode] = useState(isFullScreenMode);
+
+  // Sync local state with global state when dialog opens
+  useEffect(() => {
+    if (isDialogOpen) {
+      setTempIsVerticalLayout(isVerticalLayout);
+      setTempIsCompactMode(isCompactMode);
+      setTempIsFullScreenMode(isFullScreenMode);
+    }
+  }, [isDialogOpen, isVerticalLayout, isCompactMode, isFullScreenMode]);
+
+  /** ✅ Set Layout (Vertical or Horizontal) **/
   const setLayout = useCallback(
-    async (vertical: boolean) => {
+    (vertical: boolean) => {
+      setTempIsVerticalLayout(vertical);
+      // Reset Compact Mode to false when switching to Vertical Layout
       if (vertical) {
-        // Set Vertical Mode
-        await updateCustomDisplayMode("Vertical Mode");
-        localStorage.setItem("isVerticalLayout", JSON.stringify(true));
-        toggleLayout();
-        // Ensure full mode in vertical layout
-        setIsCompactMode(false);
-        await updateCustomDisplayMode("Full Mode");
-      } else {
-        // Set Horizontal Mode
-        await updateCustomDisplayMode("Horizontal Mode");
-        localStorage.setItem("isVerticalLayout", JSON.stringify(false));
-        toggleLayout();
-        // Force Compact Mode in horizontal layout to hide extra sidebars
-        setIsCompactMode(true);
-        await updateCustomDisplayMode("Compact Mode");
+        setTempIsCompactMode(false);
       }
     },
-    [updateCustomDisplayMode, toggleLayout, setIsCompactMode]
+    []
   );
 
-  /** Toggle Compact Mode **/
-  const handleCompactModeToggle = useCallback(async () => {
-    const newMode = isCompactMode ? "Full Mode" : "Compact Mode";
-    await updateCustomDisplayMode(newMode);
-    setIsCompactMode(!isCompactMode);
-  }, [isCompactMode, updateCustomDisplayMode]);
+  /** ✅ Toggle Compact Mode **/
+  const handleCompactModeToggle = useCallback(() => {
+    setTempIsCompactMode((prev) => !prev);
+  }, []);
 
-  /** Toggle Full Screen Mode **/
+  /** ✅ Toggle Full Screen Mode **/
   const handleFullScreenModeToggle = () => {
-    setIsFullScreenMode(!isFullScreenMode);
+    setTempIsFullScreenMode((prev) => !prev);
   };
 
-  /** Handle Logout **/
+  /** ✅ Handle Logout **/
   const handleLogout = async () => {
     setErrorMessage("");
     const isValid = await verifyUserPassword(password);
@@ -108,13 +110,39 @@ export function OptionsMenu() {
     }
   };
 
-  // Sync layout from POS Profile or LocalStorage
-  useEffect(() => {
-    if (!customDisplayMode) {
-      const storedLayout = localStorage.getItem("isVerticalLayout") === "true";
-      toggleLayout(storedLayout);
+  /** ✅ Apply Changes **/
+  const handleApplyChanges = async () => {
+    // Update layout if there is a change
+    if (tempIsVerticalLayout !== isVerticalLayout) {
+      toggleLayout(); // Toggle the layout
     }
-  }, [customDisplayMode, toggleLayout]);
+
+    // Update compact mode and full screen mode
+    setIsCompactMode(tempIsCompactMode);
+    setIsFullScreenMode(tempIsFullScreenMode);
+
+    // Update backend with new settings
+    await updateCustomDisplayMode(
+      tempIsVerticalLayout ? "Vertical Mode" : "Horizontal Mode"
+    );
+    await updateCustomDisplayMode(
+      tempIsCompactMode ? "Compact Mode" : "Full Mode"
+    );
+
+    // Close the dialog
+    setIsDialogOpen(false);
+  };
+
+  /** ✅ Reset Changes on Close **/
+  const handleCloseDialog = () => {
+    // Reset temporary changes to original values
+    setTempIsVerticalLayout(isVerticalLayout);
+    setTempIsCompactMode(isCompactMode);
+    setTempIsFullScreenMode(isFullScreenMode);
+
+    // Close the dialog
+    setIsDialogOpen(false);
+  };
 
   return (
     <React.Fragment>
@@ -126,62 +154,62 @@ export function OptionsMenu() {
 
       {/* Popover Menu */}
       <Popover>
-        <PopoverTrigger asChild>
-          <Button
-            variant="ghost"
-            className="p-4 rounded-full transition-all hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2"
-            aria-label="Open options menu"
-            style={{ touchAction: "manipulation" }}
-          >
-            <MoreVertical className="h-8 w-8" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
-          className="w-72 p-2 space-y-1 shadow-lg bg-white rounded-lg"
-        >
+      <PopoverTrigger asChild>
+        <Button variant="ghost" className="p-4 rounded-full transition-all">
+          <MoreVertical className="h-8 w-8" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-72 p-2 space-y-1 shadow-lg bg-white rounded-lg">
+        {custom_enable_recent_orders && (
           <button
             className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
             onClick={() => navigate("/trixapos/OrderScreen")}
           >
-            <Clock className="h-5 w-5 text-gray-600" />{" "}
+            <Clock className="h-5 w-5 text-gray-600" />
             <span className="ml-2">Toggle Recent Orders</span>
           </button>
-          <button
-            className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
-            onClick={() => {}}
-          >
-            <FileText className="h-5 w-5 text-gray-600" />{" "}
+        )}
+        {custom_enable_form_view && (
+          <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base">
+            <FileText className="h-5 w-5 text-gray-600" />
             <span className="ml-2">Open Form View</span>
           </button>
-          <button
-            className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
-            onClick={() => {}}
-          >
-            <Save className="h-5 w-5 text-gray-600" />{" "}
+        )}
+        {custom_enable_save_as_draft && (
+          <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base">
+            <Save className="h-5 w-5 text-gray-600" />
             <span className="ml-2">Save as Draft</span>
           </button>
-          <div className="border-t my-2"></div>
-          <button
-            className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base font-medium"
-            onClick={() => setIsDialogOpen(true)}
-          >
-            <Settings className="h-5 w-5 text-gray-600" />{" "}
-            <span className="ml-2">Display Settings</span>
-          </button>
-          <div className="border-t my-2"></div>
-          <button
-            className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base text-red-600 font-medium"
-            onClick={() => setIsLogoutDialogOpen(true)}
-          >
-            <XCircle className="h-5 w-5 text-red-600" />{" "}
-            <span className="ml-2">Close the POS</span>
-          </button>
-        </PopoverContent>
-      </Popover>
+        )}
+        {custom_enable_display_settings && (
+          <>
+            <div className="border-t my-2"></div>
+            <button
+              onClick={() => setIsDialogOpen(true)}
+              className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base font-medium"
+            >
+              <Settings className="h-5 w-5 text-gray-600" />
+              <span className="ml-2">Display Settings</span>
+            </button>
+          </>
+        )}
+        {custom_enable_close_pos && (
+          <>
+            <div className="border-t my-2"></div>
+            <button
+             onClick={() => setIsLogoutDialogOpen(true)}
+              className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base text-red-600 font-medium"
+            >
+              <XCircle className="h-5 w-5 text-red-600" />
+              <span className="ml-2">Close the POS</span>
+            </button>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
 
       {/* Display Settings Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle className="text-xl">Display Settings</DialogTitle>
@@ -198,7 +226,7 @@ export function OptionsMenu() {
             <div className="flex space-x-4">
               <button
                 className={`flex-1 p-4 border rounded-lg transition ${
-                  !isVerticalLayout
+                  !tempIsVerticalLayout
                     ? "border-blue-600 bg-blue-50 shadow-md"
                     : "border-gray-300 hover:border-gray-400"
                 }`}
@@ -207,7 +235,7 @@ export function OptionsMenu() {
                 <div className="flex justify-center mb-3">
                   <Monitor
                     className={`h-8 w-8 ${
-                      !isVerticalLayout ? "text-blue-600" : "text-gray-400"
+                      !tempIsVerticalLayout ? "text-blue-600" : "text-gray-400"
                     }`}
                   />
                 </div>
@@ -219,7 +247,7 @@ export function OptionsMenu() {
 
               <button
                 className={`flex-1 p-4 border rounded-lg transition ${
-                  isVerticalLayout
+                  tempIsVerticalLayout
                     ? "border-blue-600 bg-blue-50 shadow-md"
                     : "border-gray-300 hover:border-gray-400"
                 }`}
@@ -228,7 +256,7 @@ export function OptionsMenu() {
                 <div className="flex justify-center mb-3">
                   <Smartphone
                     className={`h-8 w-8 ${
-                      isVerticalLayout ? "text-blue-600" : "text-gray-400"
+                      tempIsVerticalLayout ? "text-blue-600" : "text-gray-400"
                     }`}
                   />
                 </div>
@@ -241,7 +269,7 @@ export function OptionsMenu() {
           </div>
 
           {/* Display Mode Toggle (Hidden in Vertical Layout) */}
-          {!isVerticalLayout && enableCompactModeOption && (
+          {!tempIsVerticalLayout && enableCompactModeOption && (
             <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
               <h3 className="text-sm font-semibold text-gray-700">
                 Display Mode
@@ -249,7 +277,7 @@ export function OptionsMenu() {
               <div className="flex space-x-4">
                 <button
                   className={`flex-1 p-4 border rounded-lg transition ${
-                    !isCompactMode
+                    !tempIsCompactMode
                       ? "border-blue-600 bg-blue-50 shadow-md"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
@@ -258,7 +286,7 @@ export function OptionsMenu() {
                   <div className="flex justify-center mb-3">
                     <LayoutGrid
                       className={`h-8 w-8 ${
-                        !isCompactMode ? "text-blue-600" : "text-gray-400"
+                        !tempIsCompactMode ? "text-blue-600" : "text-gray-400"
                       }`}
                     />
                   </div>
@@ -270,7 +298,7 @@ export function OptionsMenu() {
 
                 <button
                   className={`flex-1 p-4 border rounded-lg transition ${
-                    isCompactMode
+                    tempIsCompactMode
                       ? "border-blue-600 bg-blue-50 shadow-md"
                       : "border-gray-300 hover:border-gray-400"
                   }`}
@@ -279,7 +307,7 @@ export function OptionsMenu() {
                   <div className="flex justify-center mb-3">
                     <List
                       className={`h-8 w-8 ${
-                        isCompactMode ? "text-blue-600" : "text-gray-400"
+                        tempIsCompactMode ? "text-blue-600" : "text-gray-400"
                       }`}
                     />
                   </div>
@@ -306,12 +334,12 @@ export function OptionsMenu() {
               <button
                 onClick={handleFullScreenModeToggle}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  isFullScreenMode ? "bg-blue-600" : "bg-gray-300"
+                  tempIsFullScreenMode ? "bg-blue-600" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                    isFullScreenMode ? "translate-x-6" : "translate-x-1"
+                    tempIsFullScreenMode ? "translate-x-6" : "translate-x-1"
                   }`}
                 />
               </button>
@@ -320,9 +348,7 @@ export function OptionsMenu() {
 
           {/* Apply Changes Button */}
           <div className="flex justify-end pt-4 border-t">
-            <Button onClick={() => setIsDialogOpen(false)}>
-              Apply Changes
-            </Button>
+            <Button onClick={handleApplyChanges}>Apply Changes</Button>
           </div>
         </DialogContent>
       </Dialog>

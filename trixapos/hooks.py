@@ -15,17 +15,20 @@ fixtures = [
     }
 ]
 
+# hooks.py
 
+# Whitelisted methods for API access
 whitelisted_methods = [
-  "trixapos.api.pos_profile.get_pos_profile",
+    "trixapos.api.pos_profile.get_pos_profile",
     "trixapos.api.auth.get_logged_user",
-    "trixapos.api.pos_profile.get_pos_profile"
+    "trixapos.api.pos_profile.get_pos_profile",
+    "trixapos.api.customer_api.create_customer",  # Add this line
 ]
 
+# Override whitelisted methods (if needed)
 override_whitelisted_methods = {
     "trixapos.api.auth.verify_password": "trixapos.api.auth.verify_password"
 }
-
 
 # Apps
 # ------------------

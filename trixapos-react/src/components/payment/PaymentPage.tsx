@@ -297,7 +297,7 @@ useEffect(() => {
 
 
   ////////>>>>cashmatic/////
-  const [cashmaticMessage, setCashmaticMessage] = useState(''); // Main status message
+  const [cashmaticMessage, setCashmaticMessage] = useState('pending'); // Main status message
   const [cashmaticPayMessage, setCashmaticPayMessage] = useState('');
   const [returnedAmount, setReturnedAmount] = useState(0); // Kept as per request ✅
   const [insertedAmount, setInsertedAmount] = useState(0); // Tracks how much is inserted
@@ -308,9 +308,9 @@ useEffect(() => {
   const [refId, setRefId] = useState(null);
   const [cashmaticDialogOpen, setCashmaticDialogOpen] = useState(false);
   
-  // const { cashmaticData, hasData, isLoading, error } = useCashmaticData();
-  // const CASHMATIC_API_URL = `http://${cashmaticData.ip}:${cashmaticData.port}/api`;
-  const CASHMATIC_API_URL = `http://192.168.0.147/api`;
+  const { cashmaticData, hasData, isLoading, error } = useCashmaticData();
+  const CASHMATIC_API_URL = `http://${cashmaticData.ip}:${cashmaticData.port}/api`;
+  // const CASHMATIC_API_URL = `http://192.168.0.147/api`;
   
 
 const payWithCashmatic = async () => {
@@ -324,21 +324,40 @@ const payWithCashmatic = async () => {
       const loginResponse = await fetch(`${CASHMATIC_API_URL}/user/Login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: "admin", password: "admin" }),
+        body: JSON.stringify({ username: cashmaticData.username, password: cashmaticData.password }),
       });
 
       const loginData = await loginResponse.json();
       if (loginData.code !== 0) {
+        setPayStatus("Login failed");
+        setCashmaticMessage('Login failed, please try again');
         throw new Error("Login failed: " + loginData.message);
       }
       
       setPayStatus('✅ Logged In');
+      setCashmaticMessage('✅ Logged In successfully');
       setCashmaticProgress(30);
       const authToken = loginData.data.token;
       setToken(authToken);
 
       // Step 2: Start Payment
-      const paymentResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartPayment`, {
+      // const paymentResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartPayment`, {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     Authorization: `Bearer ${authToken}`,
+      //   },
+      //   body: JSON.stringify({ 
+      //     amount: cartTotal * 100,
+      //     queueAllowed: true,
+      //   }),
+      // });
+
+      // const paymentData = await paymentResponse.json();
+
+      // Step 2: Start Refill (other solution)
+
+      const refillResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartDeposit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -346,17 +365,19 @@ const payWithCashmatic = async () => {
         },
         body: JSON.stringify({ 
           amount: cartTotal * 100,
-          queueAllowed: true,
-          // reference: referenceId, // UNIQUE TRANSACTION IDENTIFIER
+          // queueAllowed: true,
         }),
       });
 
-      const paymentData = await paymentResponse.json();
-      if (paymentData.code === 0) {
+      const refillData = await refillResponse.json();
+
+      // to add a function that tests if there is enough change to continue with payment process
+      
+      if (refillData.code === 0) {
         setCashmaticMessage(`💰 Insert cash into Cashmatic.`);
         return { authToken }; // Return reference ID & token for tracking
       } else {
-        setCashmaticMessage("❌ Error: " + paymentData.message);
+        setCashmaticMessage("❌ Error: " + refillData.message);
         return null;
       }
 
@@ -368,10 +389,10 @@ const payWithCashmatic = async () => {
 
 // ✅ **Track Active Transaction Progress**
 const trackActiveTransaction = async (authToken: string) => {
-  let maxAttempts = 100;
+  let maxAttempts = 150; // Increased attempts to ensure full monitoring
   let attempt = 0;
   let completed = false;
-  let previousDispensed = 0; // Track previous dispensed amount
+  let previousDispensed = 0;
 
   while (attempt < maxAttempts && !completed && payStatus !== "Cancelled") {
     try {
@@ -384,36 +405,31 @@ const trackActiveTransaction = async (authToken: string) => {
       });
 
       const data = await response.json();
-
       if (data.code === 0) {
-        const { id, requested, inserted, dispensed, operation, end } = data.data;
+        const { inserted, dispensed, notDispensed, operation } = data.data;
 
-        // Ensure Progress Bar Updates
-        if (requested > 0) {
-          const progressValue = Math.min((inserted / requested) * 100, 100);
+        setInsertedAmount(inserted);
+        setRequestedAmount(cartTotal * 100);
+        setReturnedAmount(dispensed / 100); // ✅ Update returned amount each time
+
+        // If not all change has been dispensed, continue tracking
+        if (notDispensed > 0) {
+          setPayStatus("Dispensing");
+          setCashmaticMessage(`💵 Dispensing change... Remaining: €${(notDispensed / 100).toFixed(2)}`);
+        }
+
+        // Ensure progress bar updates correctly
+        if ((cartTotal * 100) > 0) {
+          const progressValue = Math.min((inserted / (cartTotal * 100)) * 100, 100);
           setCashmaticProgress(progressValue);
         }
 
-        // Update Inserted & Requested Amounts
-        setCashmaticMessage(`⏳ Insert cash: ${(inserted / 100).toFixed(2)} / ${(requested / 100).toFixed(2)}`);
-        setInsertedAmount(inserted);
-        setRequestedAmount(requested);
-        setReturnedAmount(dispensed / 100);
+        // If the full amount has been inserted, stop deposit
+        if ((inserted / 100).toFixed(2) >= (cartTotal).toFixed(2)) {
+          setPayStatus("Processing");
+          setCashmaticMessage("💳 Processing payment, please wait...");
 
-        // Detect Payment Completion or Cancellation
-        // if(insertedAmount >= requestedAmount) {
-        //     setPayStatus("Returning the Change - Dispensing");
-        //     setCashmaticMessage("Returning the Change, please wait...")
-        // }
-        if (dispensed > previousDispensed) {
-          setCashmaticMessage(`💰 Returning change... Dispensed: €${(dispensed / 100).toFixed(2)}`);
-        }
-        previousDispensed = dispensed;
-        if (operation === "idle") {
-          completed = true;
-
-          // Fetch Last Transaction for Final Amount
-          const lastTransactionResponse = await fetch(`${CASHMATIC_API_URL}/device/LastTransaction`, {
+          const stopRefill = await fetch(`${CASHMATIC_API_URL}/transaction/StopDeposit`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -421,30 +437,85 @@ const trackActiveTransaction = async (authToken: string) => {
             },
           });
 
-          const lastData = await lastTransactionResponse.json();
-          if (lastData.code === 0) {
-            const { dispensed, end } = lastData.data;
-            const finalReturned = dispensed / 100;
+          const stopRefillData = await stopRefill.json();
+          if (stopRefillData.code === 0) {
+            setPayStatus("Verifying Change");
+            setCashmaticMessage("🔄 Checking if exact change is available...");
 
-            if (end === "canceled") {
-              setPayStatus("Cancelled");
-              setCashmaticMessage(`❌ Payment Cancelled. Returned: $${finalReturned.toFixed(2)}`);
-              setCashmaticProgress(5);
-              setReturnedAmount(finalReturned); // ✅ Keep the correct returned amount
-            } else {
-              setPayStatus("Completed");
-              setCashmaticMessage(`✅ Payment Completed. Change: $${finalReturned.toFixed(2)}`);
-              setCashmaticProgress(100);
-              setReturnedAmount(finalReturned); // ✅ Store the correct value
+            const lastTransactionResponse = await fetch(`${CASHMATIC_API_URL}/device/LastTransaction`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+            });
+
+            const lastData = await lastTransactionResponse.json();
+            if (lastData.code === 0) {
+              const { inserted } = lastData.data;
+              let change = inserted - (cartTotal * 100);
+
+              // Check if machine has enough change
+              const levelsResponse = await fetch(`${CASHMATIC_API_URL}/device/AllLevels`, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${authToken}`,
+                },
+              });
+
+              const levelsData = await levelsResponse.json();
+              if (levelsData.code !== 0) {
+                throw new Error("Failed to fetch machine levels: " + levelsData.message);
+              }
+
+              const hasExactChange = canProvideExactChange(levelsData.data, change);
+
+              if (!hasExactChange) {
+                setPayStatus("Cancelling");
+                setCashmaticMessage("❌ Machine cannot provide exact change. Returning full amount...");
+
+                const withdrawResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartWithdrawal`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${authToken}`,
+                  },
+                  body: JSON.stringify({ amount: inserted }),
+                });
+
+                return;
+              } else {
+                setPayStatus("Dispensing");
+                setCashmaticMessage(`💵 Dispensing change: €${(change / 100).toFixed(2)}`);
+
+                const withdrawResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartWithdrawal`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${authToken}`,
+                  },
+                  body: JSON.stringify({ amount: change }),
+                });
+              }
             }
           }
+        }
+
+        // Wait for full change to be dispensed
+        if (notDispensed === 0 && operation === "idle") {
+          completed = true;
+
+          setPayStatus("Completed");
+          setCashmaticMessage(`✅ Payment Completed. Change returned: €${(dispensed / 100).toFixed(2)}`);
+          setCashmaticProgress(100);
         }
       } else {
         setCashmaticMessage(`⚠️ Error: ${data.message}`);
       }
     } catch (error) {
       console.error("❌ Error tracking payment:", error);
-      setCashmaticMessage("❌ Error connecting to Cashmatic.");
+      setCashmaticMessage("❌ Connection error. Please check network and retry.");
     }
 
     if (!completed && payStatus !== "Cancelled") {
@@ -457,7 +528,29 @@ const trackActiveTransaction = async (authToken: string) => {
 };
 
 
+const canProvideExactChange = (denominations: any[], change: number) => {
+  // Sort denominations in descending order
+  const sortedDenominations = denominations
+    .filter((d) => d.level > 0) // Only consider denominations with available levels
+    .sort((a, b) => b.value - a.value);
 
+  let remainingChange = change;
+
+  for (const denomination of sortedDenominations) {
+    if (remainingChange === 0) break;
+
+    const maxPossible = Math.min(
+      Math.floor(remainingChange / denomination.value),
+      denomination.level
+    );
+
+    if (maxPossible > 0) {
+      remainingChange -= maxPossible * denomination.value;
+    }
+  }
+
+  return remainingChange === 0; // Exact change is possible if remainingChange is 0
+};
 
 
 
@@ -474,7 +567,7 @@ const handlePayment = async () => {
 
     // setCashmaticMessage("💰 Please insert cash into Cashmatic...");
     const dispensedAmount = await trackActiveTransaction(authToken);
-    setCashmaticMessage(prevMessage => prevMessage + " Returned Amount: " + dispensedAmount);
+    // setCashmaticMessage(prevMessage => prevMessage + " Returned Amount: " + dispensedAmount);
     // setCashmaticProgress(100);
     // if (dispensedAmount !== null) {
     //     setCashmaticMessage(`✅ Payment Completed! Change dispensed: $${dispensedAmount.toFixed(2)}`);
@@ -692,8 +785,8 @@ const cancelPayment = async () => {
       />
       <CashmaticPaymentDialog 
         isOpen={cashmaticDialogOpen} 
-        status={cashmaticMessage} 
-        message1={cashmaticPayMessage} 
+        status={payStatus} 
+        message={cashmaticMessage} 
         onClose={() => {
           setCashmaticDialogOpen(false);
           onClose()
@@ -745,92 +838,135 @@ const cancelPayment = async () => {
 // };
 import { Loader, CheckCircle, AlertCircle, Clock } from "lucide-react";
 
-const CashmaticPaymentDialog = ({ isOpen, status, message1, progress, inserted, requested, returnedAmount, onClose, cancelPayment }) => {
-  
-  const [message, setMessage] = useState(message1);
+// Update the CashmaticPaymentDialog component with these changes
+const CashmaticPaymentDialog = ({ 
+  isOpen, 
+  status, 
+  message, 
+  progress, 
+  inserted, 
+  requested, 
+  returnedAmount, 
+  onClose, 
+  cancelPayment 
+}) => {
+  const getStatusIcon = () => {
+    if (status.includes("Logging") || status.includes("Checking")) {
+      return <Loader className="w-12 h-12 text-blue-500 animate-spin" />;
+    }
+    if (status.includes("Processing") || status.includes("Dispensing")) {
+      return <Clock className="w-12 h-12 text-purple-500 animate-pulse" />;
+    }
+    if (status.includes("Completed")) {
+      return <CheckCircle className="w-12 h-12 text-green-500 animate-bounce" />;
+    }
+    if (status.includes("Cancelled")) {
+      return <XCircle className="w-12 h-12 text-red-500 animate-pulse" />;
+    }
+    if (message.includes("Error")) {
+      return <AlertCircle className="w-12 h-12 text-red-500" />;
+    }
+    return <Loader className="w-12 h-12 text-blue-500 animate-spin" />;
+  };
+
+  const getStatusMessage = () => {
+    if (status.includes("Dispensing")) {
+      return `Dispensing change: €${returnedAmount.toFixed(2)}`;
+    }
+    if (status.includes("Cancelling")) {
+      return "Cancelling transaction and returning funds...";
+    }
+    if (status.includes("Checking")) {
+      return "Verifying exact change availability...";
+    }
+    return message;
+  };
+
+  const getProgressColor = () => {
+    if (status.includes("Cancelled")) return "bg-red-500";
+    if (status.includes("Dispensing")) return "bg-purple-500";
+    if (status.includes("Checking")) return "bg-yellow-500";
+    if (progress < 50) return "bg-yellow-500";
+    if (progress < 90) return "bg-blue-500";
+    return "bg-green-500";
+  };
 
   useEffect(() => {
     let timer;
     if (isOpen && status.includes("Completed")) {
-      timer = setTimeout(() => {
-        onClose(); // Auto-close dialog
-      }, 10000); // 10 seconds
+      timer = setTimeout(() => onClose(), 7000); // Shorter timeout for completed
     }
-    
-    return () => clearTimeout(timer); // Cleanup if the component unmounts or user closes manually
+    return () => clearTimeout(timer);
   }, [isOpen, status, onClose]);
 
-  status.includes("Cancelled") && (setMessage("Payment Cancelled"));
-  if(status.includes("Dispensing"))
-    setMessage("Returning the change, please wait...");
-
   return (
-    // <Dialog open={isOpen} onOpenChange={(!status.includes("Cancelled") && !status.includes("Completed")) ? cancelPayment : onClose}>
     <Dialog open={isOpen} modal onOpenChange={() => {}}>
-       <DialogContent showCloseButton={false} className="w-full max-w-lg p-6 bg-white rounded-lg shadow-lg flex flex-col items-center">
+      <DialogContent showCloseButton={false} className="w-full max-w-lg p-6 bg-white rounded-lg shadow-lg flex flex-col items-center">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-900">
-            💵 Cashmatic Payment Process
+            {status.includes("Cancelled") ? "❌ Payment Cancelled" : "💵 Cashmatic Payment"}
           </DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col items-center text-center mt-4 space-y-3">
-          {/* Dynamic Status Icon */}
-          {status.includes("Logging") && <Loader className="w-12 h-12 text-blue-500 animate-spin" />}
-          {(status.includes("Processing") || status.includes("Dispensing")) && <Clock className="w-12 h-12 text-yellow-500 animate-pulse" />}
-          {status.includes("Completed") && <CheckCircle className="w-12 h-12 text-green-500 animate-bounce" />}
-          {status.includes("Cancelled") && <XCircle className="w-12 h-12 text-red-500 animate-pulse" />}
-          {message.includes("Error") && <AlertCircle className="w-12 h-12 text-red-500" />}
+          {getStatusIcon()}
 
-          {/* Status Messages */}
-          <p className="mt-2 text-gray-800 text-lg font-semibold">{message}</p>
+          <p className="mt-2 text-gray-800 text-lg font-semibold">
+            {getStatusMessage()}
+          </p>
 
-          {/* Display Inserted Amount OR Returned Amount */}
-          {inserted !== null && requested !== null && !status.includes("Cancelled") && (
-            progress === 100 ? (
-              <p className="text-gray-600 text-md">
-                <strong>Returned:</strong> ${returnedAmount.toFixed(2)}
-              </p>
-            ) : (
-              <p className="text-gray-600 text-md">
-                <strong>Inserted:</strong> ${(inserted / 100).toFixed(2)} / ${(requested / 100).toFixed(2)}
-              </p>
-            )
+          {(inserted !== null && requested !== null) && (
+            <div className="space-y-1">
+              {!status.includes("Cancelled") && (
+                <p className="text-gray-600 text-sm">
+                  Inserted: €{(inserted / 100).toFixed(2)} / Needed: €{(requested / 100).toFixed(2)}
+                </p>
+              )}
+              {returnedAmount > 0 && (
+                <p className={`text-sm ${
+                  status.includes("Cancelled") ? "text-red-600" : "text-green-600"
+                }`}>
+                  {status.includes("Cancelled") ? "Returned: " : "Change: "}
+                  €{returnedAmount.toFixed(2)}
+                </p>
+              )}
+            </div>
           )}
 
-          {/* Progress Bar */}
-          {!status.includes("Cancelled") && 
-          <div className="w-full bg-gray-300 rounded-full h-3 mt-2">
-            <div
-              className={`h-3 rounded-full transition-all duration-500 ${
-                progress < 50 ? "bg-yellow-500" : progress < 90 ? "bg-blue-500" : "bg-green-500"
-              }`}
-              style={{ width: `${progress}%` }}
-            ></div>
-          </div>
-          }
+          {!status.includes("Cancelled") && (
+            <div className="w-full bg-gray-200 rounded-full h-3 mt-2">
+              <div
+                className={`h-3 rounded-full transition-all duration-500 ${getProgressColor()}`}
+                style={{ width: `${status.includes("Checking") ? 100 : progress}%` }}
+              >
+                {status.includes("Checking") && (
+                  <div className="animate-pulse bg-white/30 w-full h-full rounded-full" />
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Buttons */}
-        <div className="flex gap-4 mt-6">
-          {/* Cancel Payment Button */}
-          {!status.includes("Cancelled") && !status.includes("Completed") && !status.includes("Dispensing") && (
-            <button 
+        <div className="flex gap-4 mt-6 w-full">
+          {!status.includes("Cancelled") && 
+           !status.includes("Completed") && 
+           !status.includes("Dispensing") && (
+            <button
               onClick={cancelPayment}
-              className="flex-1 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg text-lg font-medium transition"
+              className="flex-1 py-2.5 text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition disabled:opacity-50"
+              disabled={status.includes("Checking")}
             >
-              Cancel Payment
+              {status.includes("Checking") ? "Processing..." : "Cancel Payment"}
             </button>
           )}
 
-          {/* Close Dialog Button */}
           {(status.includes("Cancelled") || status.includes("Completed")) && (
-          <button 
-            onClick={onClose}
-            className="flex-1 py-2 text-white bg-gray-700 hover:bg-gray-800 rounded-lg text-lg font-medium transition"
-          >
-            Close
-          </button>
+            <button 
+              onClick={onClose}
+              className="flex-1 py-2.5 text-white bg-gray-700 hover:bg-gray-800 rounded-lg font-medium transition"
+            >
+              Close
+            </button>
           )}
         </div>
       </DialogContent>

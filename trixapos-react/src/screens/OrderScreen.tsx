@@ -8,12 +8,11 @@ import { format } from "date-fns";
 import { Package, Clock, Search, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/layout/TopBar";
-import { getOfflineOrders } from "@/lib/db";
+import { RejectedOrderCard } from "@/components/orders/RejectedOrderCard";
 
 export const OrderScreen = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { username } = useAuth();
-
   const {
     getDraftOrders,
     completedOrders,
@@ -21,12 +20,12 @@ export const OrderScreen = () => {
     loadHeldOrder,
     removeHeldOrder,
     resendOrderEmail,
+    syncOfflineOrders,
+    heldOrders,
   } = usePOSStore();
 
-  // NW: Get the currently selected customer from the POS store.
   const { customer } = usePOSStore();
-
-  const [heldOrders, setHeldOrders] = useState<any[]>([]);
+  const [heldOrderList, setHeldOrderList] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(true);
 
   const navigate = useNavigate();
@@ -36,21 +35,29 @@ export const OrderScreen = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Fetch orders on mount
   useEffect(() => {
     const fetchHeldOrders = async () => {
       try {
-        // const orders = await getOfflineOrders();
         const orders = await getDraftOrders();
-        setHeldOrders(orders);
+        setHeldOrderList(orders);
       } catch (error) {
         console.error("Failed to fetch held orders", error);
       } finally {
         setLoadingOrders(false);
       }
     };
-
     fetchHeldOrders();
-  }, []);
+  }, [getDraftOrders]);
+
+  // Listen for the "online" event to sync offline orders
+  useEffect(() => {
+    const handleOnline = () => {
+      syncOfflineOrders();
+    };
+    window.addEventListener("online", handleOnline);
+    return () => window.removeEventListener("online", handleOnline);
+  }, [syncOfflineOrders]);
 
   const handleLoadOrder = (id: string) => {
     loadHeldOrder(id);
@@ -69,7 +76,7 @@ export const OrderScreen = () => {
     }
   };
 
-  // NW: Filter logic remains the same
+  // Filter logic (unchanged)
   const filterOrders = (orders: any[]) => {
     const lowerSearch = searchTerm.toLowerCase();
     return orders.filter((order) => {
@@ -78,7 +85,6 @@ export const OrderScreen = () => {
           item.item_name.toLowerCase().includes(lowerSearch) ||
           item.item_code.toLowerCase().includes(lowerSearch)
       );
-
       let customerMatch = false;
       if (order.customer) {
         if (typeof order.customer === "string") {
@@ -89,12 +95,11 @@ export const OrderScreen = () => {
             .includes(lowerSearch);
         }
       }
-
       return itemMatch || customerMatch;
     });
   };
 
-  const filteredHeldOrders = filterOrders(heldOrders);
+  const filteredHeldOrders = filterOrders(heldOrderList);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -129,7 +134,7 @@ export const OrderScreen = () => {
                 value="held"
                 className="flex-1 h-full data-[state=active]:bg-gray-50 rounded-none border-b-2 data-[state=active]:border-blue-600"
               >
-                Held Orders ({heldOrders.length})
+                Held Orders ({heldOrderList.length})
               </TabsTrigger>
               <TabsTrigger
                 value="completed"
@@ -166,17 +171,16 @@ export const OrderScreen = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredHeldOrders.map((order) => (
                     <div key={order.id} className="relative">
-                      <span className="absolute -top-[-7px] left-2 text-[14px] text-blue-600 font-bold">
+                      {/* Display Order ID */}
+
+                      <span className="absolute -top-[-8px] left-2 text-[14px] text-blue-600 font-bold">
                         {order.customer
                           ? typeof order.customer === "string"
                             ? order.customer
                             : order.customer.customer_name
                           : "Guest Customer"}
                       </span>
-
-                      {/* NW: Use a flex column to separate items (scrollable) from the fixed note + bottom buttons */}
-                      <div className="bg-white border-[1.2px] rounded-lg mt-6 hover:shadow-md transition-shadow border-blue-600 p-4 flex flex-col min-h-[220px]">
-                        {/* Header Row */}
+                      <div className="bg-white border-[1.2px] rounded-lg mt-6 hover:shadow-md transition-shadow border-blue-600 p-4 flex flex-col h-[244px]">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2 text-sm text-gray-500">
                             <Clock className="w-4 h-4" />
@@ -185,12 +189,15 @@ export const OrderScreen = () => {
                               "MMM d, yyyy h:mm a"
                             )}
                           </div>
-                          <span className="font-medium">
-                            ${order.total.toFixed(2)}
-                          </span>
+                          <div className="flex items-end gap-2 flex-col justify-start items-start">
+                            <span className="font-medium">
+                              ${order.total.toFixed(2)}
+                            </span>
+                            <span className=" text-[12px] text-gray-500">
+                              ID: {order.id}
+                            </span>
+                          </div>
                         </div>
-
-                        {/* NW: Middle section is scrollable if needed */}
                         <div className="flex-1 overflow-auto">
                           {order.items.slice(0, 3).map((item: any) => (
                             <div
@@ -201,15 +208,11 @@ export const OrderScreen = () => {
                             </div>
                           ))}
                         </div>
-
-                        {/* NW: The note is placed below the items, but above the buttons */}
                         {order.note && (
                           <div className="mt-2 text-sm bg-gray-50 p-2 rounded">
                             Note: {order.note}
                           </div>
                         )}
-
-                        {/* NW: The button row stays at the bottom */}
                         <div className="pt-2 flex gap-2">
                           <Button
                             variant="outline"
@@ -217,7 +220,7 @@ export const OrderScreen = () => {
                             className="text-red-600 hover:text-red-700 mr-3 border-red-400"
                             onClick={() => {
                               removeHeldOrder(order.id);
-                              setHeldOrders((prev) =>
+                              setHeldOrderList((prev) =>
                                 prev.filter((o) => o.id !== order.id)
                               );
                             }}
@@ -239,8 +242,34 @@ export const OrderScreen = () => {
               )}
             </>
           )}
-
-          {/* Similar usage for activeTab === "completed" and "rejected" if needed */}
+          {activeTab === "rejected" && (
+            <>
+              {rejectedOrders.length === 0 ? (
+                <div className="text-center py-12 bg-white rounded-lg border">
+                  <Package className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                  <p className="text-gray-500">No rejected orders found</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {rejectedOrders.map((order) => (
+                    <RejectedOrderCard
+                      key={order.id}
+                      order={order}
+                      onLoadOrder={handleLoadOrder}
+                      onRemoveOrder={(id) => {
+                        // For rejected orders, you can simply remove from the store
+                        removeHeldOrder(id);
+                        setHeldOrderList((prev) =>
+                          prev.filter((o) => o.id !== id)
+                        );
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          {/* You can add similar sections for "completed" tabs if needed */}
         </div>
       </div>
     </div>

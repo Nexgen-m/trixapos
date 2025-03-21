@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { UserPlus } from "lucide-react"; // Import the UserPlus icon
 import {
   Settings,
   MoreVertical,
@@ -26,6 +27,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
+import { CustomerDialog } from "@/components/CustomerDialog";
 import { useAuth } from "@/lib/auth";
 import { usePOSStore } from "../../hooks/Stores/usePOSStore";
 import { usePOSProfile } from "../../hooks/fetchers/usePOSProfile";
@@ -43,6 +45,7 @@ export function OptionsMenu() {
     custom_enable_save_as_draft,
     custom_enable_display_settings,
     custom_enable_close_pos,
+    AddNewCustomer,
   } = usePOSProfile();
 
 
@@ -53,6 +56,9 @@ export function OptionsMenu() {
   const setIsCompactMode = usePOSStore((state) => state.setIsCompactMode);
   const setIsFullScreenMode = usePOSStore((state) => state.setIsFullScreenMode);
   const toggleLayout = usePOSStore((state) => state.toggleLayout);
+
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+
 
   // Fetch POS profile settings
   const {
@@ -181,6 +187,25 @@ export function OptionsMenu() {
             <span className="ml-2">Save as Draft</span>
           </button>
         )}
+        
+        {/* Add the "Create New Customer" button */}
+      {AddNewCustomer && (
+        <button
+          className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
+          onClick={() => setIsCustomerDialogOpen(true)} // Open the dialog
+        >
+          <UserPlus className="h-5 w-5 text-gray-600" />
+          <span className="ml-2">Add New Customer</span>
+        </button>
+      )}
+
+      {/* Customer Dialog Component */}
+      <CustomerDialog
+        isOpen={isCustomerDialogOpen}
+        onClose={() => setIsCustomerDialogOpen(false)} // Close the dialog
+      />
+  
+
         {custom_enable_display_settings && (
           <>
             <div className="border-t my-2"></div>

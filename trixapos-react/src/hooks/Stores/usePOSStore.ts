@@ -7,8 +7,7 @@ import {
   removeOfflineOrder,
 } from "@/lib/db";
 import { redirect } from "react-router-dom";
-
-// Import custom Frappe API helper. This wrapper around the frappe-js-sdk's call method
+// Import our custom Frappe API helper. This wrapper around the frappe-js-sdk's call method
 // is used to perform online API calls for draft sales orders.
 import { fetchFromFrappe } from "@/lib/frappeApi";
 
@@ -41,22 +40,16 @@ interface POSStore {
 
   initializeHeldOrders: () => Promise<void>;
   // Order-related functions
-  holdOrder: (draftName: string, total: number, customer: Customer) => void; // NW: changed parameter type to Customer
+  holdOrder: (draftName: string, total: number, customer: Customer) => void;
   restoreDraftOrder: (draftName: string) => void;
   deleteDraftOrder: (draftName: string) => void;
-  getDraftOrders: () => Promise<
-    {
-      id: string;
-      timestamp: number;
-      total: number;
-      items: ExtendedCartItem[];
-      note?: string;
-      customer?: string | Customer;
-    }[]
-  >;
+  getDraftOrders: () => Promise<Order[]>;
   loadHeldOrder: (id: string) => void;
   removeHeldOrder: (id: string) => void;
   resendOrderEmail: (orderId: string, email: string) => Promise<void>;
+
+  // New function for syncing offline orders when back online
+  syncOfflineOrders: () => Promise<void>;
 
   // Actions
   addToCart: (item: ExtendedCartItem) => void;
@@ -69,9 +62,9 @@ interface POSStore {
     discount?: number
   ) => void;
   setCustomer: (customer: Customer | null) => void;
-  toggleLayout: () => void; // Toggle layouts
-  setIsCompactMode: (value: boolean) => void; // Set compact mode
-  setIsFullScreenMode: (value: boolean) => void; // Set full screen mode
+  toggleLayout: () => void;
+  setIsCompactMode: (value: boolean) => void;
+  setIsFullScreenMode: (value: boolean) => void;
   setOrderDiscount: (discount: number) => void;
   setSelectedCategory: (category: string) => void;
   clearCart: () => void;
@@ -99,7 +92,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   completedOrders: [],
   rejectedOrders: [],
 
-  // Add this function to initialize held orders from IndexedDB
+  // Initialize held orders from IndexedDB
   initializeHeldOrders: async () => {
     try {
       const orders = await getOfflineOrders();
@@ -109,43 +102,61 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     }
   },
 
-  // Hold order functionality
+  // Hold order functionality with online/offline support
   holdOrder: async (draftName, total, customer) => {
-    const state = get(); // Get the current state
-
+    const state = get();
     if (!state.cart.length) {
       toast.error("Cannot hold an empty cart.");
       return;
     }
-
-    // Create new held order
-    const newHeldOrder = {
-      id: `hold-${Date.now()}`, // Unique ID
-      timestamp: Date.now(),
+    // Build order payload from current state
+    const orderPayload = {
+      customer: customer?.name || "Guest Customer",
       total,
-      items: state.cart,
       note: draftName,
-      customer, // NW: Modified to store the full Customer object instead of just a string.
+      items: state.cart,
+      timestamp: Date.now(),
     };
 
-    // Save the order offline to IndexedDB
-    await saveOrderOffline(newHeldOrder);
-
-    // Update the state
+    if (navigator.onLine) {
+      try {
+        // Call ERPNext API to create a draft Sales Order.
+        // This endpoint should create the Sales Order in draft (unsubmitted) state.
+        const response = await fetchFromFrappe(
+          "trixapos.api.sales_order.create_draft_sales_order",
+          {
+            args: orderPayload,
+          }
+        );
+        if (response.success) {
+          toast.success("Draft order saved online!");
+          // Clear the cart and total once saved online.
+          set({ cart: [], total: 0 });
+          // Refresh the list of orders.
+          await get().getDraftOrders();
+          return;
+        } else {
+          throw new Error(response.error);
+        }
+      } catch (error) {
+        toast.error("Failed to save online. Saving order offline instead.");
+        console.error(error);
+      }
+    }
+    // Offline fallback: generate a unique id with "offline-" prefix.
+    const offlineOrder = { id: `offline-${Date.now()}`, ...orderPayload };
+    await saveOrderOffline(offlineOrder);
     set((state) => ({
-      heldOrders: [...state.heldOrders, newHeldOrder],
-      cart: [], // Clear the cart after holding
-      total: 0, // Reset the total
+      heldOrders: [...state.heldOrders, offlineOrder],
+      cart: [],
+      total: 0,
     }));
   },
 
   // Restore draft order from IndexedDB
   restoreDraftOrder: async (draftName) => {
     try {
-      // Fetch all draft orders from IndexedDB
       const existingDrafts = await getOfflineOrders();
-
-      // Find the draft by name
       const draft = existingDrafts.find(
         (d: { note: string }) => d.note === draftName
       );
@@ -153,14 +164,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         toast.error("Draft order not found.");
         return;
       }
-
-      // Update the state with the restored draft
-      set((state) => ({
-        cart: draft.items,
-        total: draft.total,
-        customer: draft.customer,
-      }));
-
+      set({ cart: draft.items, total: draft.total, customer: draft.customer });
       toast.success(`Draft "${draftName}" restored.`);
     } catch (error) {
       toast.error("Failed to restore draft order.");
@@ -171,10 +175,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   // Delete draft order from IndexedDB
   deleteDraftOrder: async (draftName) => {
     try {
-      // Fetch all draft orders from IndexedDB
       const existingDrafts = await getOfflineOrders();
-
-      // Find the draft by name
       const draft = existingDrafts.find(
         (d: { note: string }) => d.note === draftName
       );
@@ -182,15 +183,10 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         toast.error("Draft order not found.");
         return;
       }
-
-      // Remove the draft from IndexedDB
       await removeOfflineOrder(draft.id);
-
-      // Update the state
       set((state) => ({
         heldOrders: state.heldOrders.filter((o) => o.id !== draft.id),
       }));
-
       toast.success(`Draft "${draftName}" deleted.`);
     } catch (error) {
       toast.error("Failed to delete draft order.");
@@ -198,17 +194,42 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     }
   },
 
-  // Get all draft orders from IndexedDB
+  // Get all draft orders merging online and offline orders.
+  // For online orders, we call our ERPNext API endpoint to get Sales Orders in draft state.
+  // We map each online order using its ERPNext-generated 'name' as the order ID,
+  // and extract fields such as creation date (mapped to timestamp), total, custom_note, and customer.
+  // Offline orders already have IDs in the format "offline-{timestamp}".
   getDraftOrders: async () => {
-    try {
-      const drafts = await getOfflineOrders();
-      console.log("drafts: " + drafts);
-      return drafts;
-    } catch (error) {
-      toast.error("Failed to fetch draft orders.");
-      console.error(error);
-      return [];
+    let onlineOrders: Order[] = [];
+    if (navigator.onLine) {
+      try {
+        const response = await fetchFromFrappe(
+          "trixapos.api.sales_order.get_draft_sales_orders",
+          {
+            args: {},
+          }
+        );
+        if (Array.isArray(response)) {
+          onlineOrders = response.map((o: any) => ({
+            id: o.name, // ERPNext Sales Order 'name' is used as the order ID.
+            timestamp: new Date(o.creation).getTime(), // Use the creation date as the timestamp.
+            total: o.total,
+            items: o.items || [], // Map item details if available.
+            note: o.custom_note,
+            customer: o.customer,
+          }));
+        } else {
+          toast.error("Failed to fetch online orders.");
+        }
+      } catch (error) {
+        toast.error("Error fetching online orders.");
+        console.error(error);
+      }
     }
+    const offlineOrders = await getOfflineOrders();
+    const mergedOrders = [...offlineOrders, ...onlineOrders];
+    set({ heldOrders: mergedOrders });
+    return mergedOrders;
   },
 
   // Load a held order into the cart
@@ -217,33 +238,30 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     if (order) {
       let customerData: Customer | null = null;
       if (order.customer) {
-        if (typeof order.customer === "string") {
-          customerData = {
-            name: order.customer,
-            customer_name: order.customer,
-          } as Customer;
-        } else {
-          customerData = order.customer;
-        }
+        customerData =
+          typeof order.customer === "string"
+            ? ({
+                name: order.customer,
+                customer_name: order.customer,
+              } as Customer)
+            : order.customer;
       }
       set({ cart: order.items, total: order.total, customer: customerData });
       toast.success(`Loaded held order ${order.id}`);
     } else {
-      // If the order is not in the state, try fetching it from IndexedDB
       try {
         const dbOrder = await getOfflineOrders();
         const orderFromDB = dbOrder.find((o) => o.id === id);
         if (orderFromDB) {
           let customerData: Customer | null = null;
           if (orderFromDB.customer) {
-            if (typeof orderFromDB.customer === "string") {
-              customerData = {
-                name: orderFromDB.customer,
-                customer_name: orderFromDB.customer,
-              } as Customer;
-            } else {
-              customerData = orderFromDB.customer;
-            }
+            customerData =
+              typeof orderFromDB.customer === "string"
+                ? ({
+                    name: orderFromDB.customer,
+                    customer_name: orderFromDB.customer,
+                  } as Customer)
+                : orderFromDB.customer;
           }
           set({
             cart: orderFromDB.items,
@@ -261,28 +279,74 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     }
   },
 
-  // Remove a held order from the state and IndexedDB
+  // Remove a held order from both online and offline storage.
+  // For online orders, instead of deleting, we call a cancellation endpoint and then
+  // move the order to the rejectedOrders array.
   removeHeldOrder: async (id: string) => {
     try {
-      // Remove the order from IndexedDB
-      await removeOfflineOrder(id);
-
-      // Update the state
-      set((state) => {
-        const updatedHeldOrders = state.heldOrders.filter((o) => o.id !== id);
-        return { heldOrders: updatedHeldOrders };
-      });
-
-      toast.success(`Removed held order ${id}`);
+      if (id.startsWith("offline-")) {
+        // Offline order: remove it from IndexedDB.
+        await removeOfflineOrder(id);
+        set((state) => ({
+          heldOrders: state.heldOrders.filter((o) => o.id !== id),
+        }));
+        toast.success(`Removed held order ${id}`);
+      } else if (navigator.onLine) {
+        // Online order: call the cancellation endpoint instead of deletion.
+        const response = await fetchFromFrappe(
+          "trixapos.api.sales_order.cancel_order",
+          {
+            args: { order_id: id },
+          }
+        );
+        if (!response.success) throw new Error(response.error);
+        // On successful cancellation, remove it from heldOrders and add it to rejectedOrders.
+        set((state) => {
+          const removedOrder = state.heldOrders.find((o) => o.id === id);
+          return {
+            heldOrders: state.heldOrders.filter((o) => o.id !== id),
+            rejectedOrders: removedOrder
+              ? [...state.rejectedOrders, removedOrder]
+              : state.rejectedOrders,
+          };
+        });
+        toast.success(`Canceled order ${id}`);
+      }
     } catch (error) {
-      toast.error("Failed to remove held order.");
+      toast.error("Failed to cancel order.");
       console.error(error);
     }
   },
 
+  // Sync offline orders to ERPNext when online.
+  // For each offline order, call the ERPNext API to create a Sales Order.
+  // On successful creation, remove the offline order from IndexedDB and refresh the order list.
+  syncOfflineOrders: async () => {
+    if (!navigator.onLine) return;
+    const offlineOrders = await getOfflineOrders();
+    for (const order of offlineOrders) {
+      try {
+        const response = await fetchFromFrappe(
+          "trixapos.api.sales_order.create_draft_sales_order",
+          {
+            args: order,
+          }
+        );
+        if (response.success) {
+          await removeOfflineOrder(order.id);
+          toast.success(`Synced offline order ${order.id}`);
+        } else {
+          throw new Error(response.error);
+        }
+      } catch (error) {
+        console.error("Failed to sync offline order", order.id, error);
+      }
+    }
+    await get().getDraftOrders();
+  },
+
   // Simulate sending an email for an order
   resendOrderEmail: async (orderId: string, email: string) => {
-    // Simulate sending an email
     toast.success(`Email sent for order ${orderId} to ${email}`);
     return Promise.resolve();
   },
@@ -291,19 +355,13 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   toggleLayout: () => {
     const currentLayout = get().isVerticalLayout;
     const newLayout = !currentLayout;
-
-    // Save the new layout preference to localStorage
     localStorage.setItem("isVerticalLayout", JSON.stringify(newLayout));
-
-    // Reset the POS screen
     set({
       isVerticalLayout: newLayout,
-      cart: [], // Clear the cart
-      selectedCategory: "", // Reset the selected category
-      total: 0, // Reset the total
+      cart: [],
+      selectedCategory: "",
+      total: 0,
     });
-
-    // Optionally, you can trigger a page reload here
     window.location.reload();
   },
 
@@ -321,16 +379,13 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   // Calculate total with discounts
   calculateTotal: () => {
     const { cart, orderDiscount } = get();
-
     const calculatedTotal =
       cart.reduce((sum, item) => {
         const itemTotal = item.price_list_rate * item.qty;
         const itemDiscountAmount = itemTotal * ((item.discount || 0) / 100);
         return sum + (itemTotal - itemDiscountAmount);
       }, 0) - orderDiscount;
-
     const finalTotal = Math.max(0, calculatedTotal);
-
     set({ total: finalTotal });
     return finalTotal;
   },
@@ -343,12 +398,10 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       );
       return;
     }
-
     set((state) => {
       const existingItem = state.cart.find(
         (i) => i.item_code === item.item_code
       );
-
       const updatedCart = existingItem
         ? state.cart.map((i) =>
             i.item_code === item.item_code
@@ -360,11 +413,9 @@ export const usePOSStore = create<POSStore>((set, get) => ({
               : i
           )
         : [...state.cart, { ...item, qty: 1, discount: item.discount || 0 }];
-
       localStorage.setItem("cart", JSON.stringify(updatedCart));
       return { cart: updatedCart };
     });
-
     const newTotal = get().calculateTotal();
     set({ total: newTotal });
   },
@@ -376,7 +427,6 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       localStorage.setItem("cart", JSON.stringify(updatedCart));
       return { cart: updatedCart };
     });
-
     const newTotal = get().calculateTotal();
     set({ total: newTotal });
   },
@@ -384,16 +434,13 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   // Update item quantity
   updateQuantity: (itemCode, qty) => {
     if (qty < 1) return;
-
     set((state) => {
       const updatedCart = state.cart.map((item) =>
         item.item_code === itemCode ? { ...item, qty: qty } : item
       );
-
       localStorage.setItem("cart", JSON.stringify(updatedCart));
       return { cart: updatedCart };
     });
-
     const newTotal = get().calculateTotal();
     set({ total: newTotal });
   },
@@ -401,18 +448,15 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   // Update item details
   updateItem: (itemCode, qty, price, discount = 0) => {
     if (qty < 1) qty = 1;
-
     set((state) => {
       const updatedCart = state.cart.map((i) =>
         i.item_code === itemCode
           ? { ...i, qty, price_list_rate: price, discount }
           : i
       );
-
       localStorage.setItem("cart", JSON.stringify(updatedCart));
       return { cart: updatedCart };
     });
-
     const newTotal = get().calculateTotal();
     set({ total: newTotal });
   },
@@ -450,7 +494,6 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     const savedCart = localStorage.getItem("cart");
     const compactMode = localStorage.getItem("compactMode") === "true";
     const verticalLayout = localStorage.getItem("isVerticalLayout") === "true";
-
     set(() => ({
       cart: savedCart ? JSON.parse(savedCart) : [],
       isCompactMode: compactMode,

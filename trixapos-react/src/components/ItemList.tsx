@@ -292,3 +292,4 @@ export function ItemList({ searchTerm }: ItemListProps) {
     </div>
   );
 }
+

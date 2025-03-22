@@ -357,6 +357,9 @@ const payWithCashmatic = async () => {
 
       // Step 2: Start Refill (other solution)
 
+      const check = await checkChangeBeforePayment(cartTotal, authToken);
+      if(check){
+
       const refillResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartDeposit`, {
         method: "POST",
         headers: {
@@ -380,6 +383,10 @@ const payWithCashmatic = async () => {
         setCashmaticMessage("❌ Error: " + refillData.message);
         return null;
       }
+    }else{
+      setPayStatus("Cancelled");
+      setCashmaticMessage("❌ Machine cannot provide change right now.");
+    }
 
     } catch (error) {
       setCashmaticMessage(`❌ ${error.message}`);
@@ -393,8 +400,9 @@ const trackActiveTransaction = async (authToken: string) => {
   let attempt = 0;
   let completed = false;
   let previousDispensed = 0;
+  setReturnedAmount(0);
 
-  while (attempt < maxAttempts && !completed && payStatus !== "Cancelled") {
+  while ((attempt < maxAttempts) && !completed && (payStatus !== "Cancelled") && (payStatus !== "Completed")) {
     try {
       const response = await fetch(`${CASHMATIC_API_URL}/device/ActiveTransaction`, {
         method: "POST",
@@ -408,14 +416,15 @@ const trackActiveTransaction = async (authToken: string) => {
       if (data.code === 0) {
         const { inserted, dispensed, notDispensed, operation } = data.data;
 
+        if (payStatus === "Cancelled") break;
         setInsertedAmount(inserted);
         setRequestedAmount(cartTotal * 100);
         setReturnedAmount(dispensed / 100); // ✅ Update returned amount each time
 
         // If not all change has been dispensed, continue tracking
-        if (notDispensed > 0) {
+        if ((operation == "withdrawal")) {
           setPayStatus("Dispensing");
-          setCashmaticMessage(`💵 Dispensing change... Remaining: €${(notDispensed / 100).toFixed(2)}`);
+          // setCashmaticMessage(`💵 Dispensing change... Remaining: €${(notDispensed / 100).toFixed(2)}`);
         }
 
         // Ensure progress bar updates correctly
@@ -451,43 +460,44 @@ const trackActiveTransaction = async (authToken: string) => {
             });
 
             const lastData = await lastTransactionResponse.json();
-            if (lastData.code === 0) {
+            if ((lastData.code === 0) && (operation !== "idle")) {
               const { inserted } = lastData.data;
               let change = inserted - (cartTotal * 100);
+              setReturnedAmount(change / 100);
+              previousDispensed = change / 100;
 
               // Check if machine has enough change
-              const levelsResponse = await fetch(`${CASHMATIC_API_URL}/device/AllLevels`, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${authToken}`,
-                },
-              });
+              // const levelsResponse = await fetch(`${CASHMATIC_API_URL}/device/AllLevels`, {
+              //   method: "POST",
+              //   headers: {
+              //     "Content-Type": "application/json",
+              //     Authorization: `Bearer ${authToken}`,
+              //   },
+              // });
 
-              const levelsData = await levelsResponse.json();
-              if (levelsData.code !== 0) {
-                throw new Error("Failed to fetch machine levels: " + levelsData.message);
-              }
+              // const levelsData = await levelsResponse.json();
+              // if (levelsData.code !== 0) {
+              //   throw new Error("Failed to fetch machine levels: " + levelsData.message);
+              // }
 
-              const hasExactChange = canProvideExactChange(levelsData.data, change);
+              // const hasExactChange = canProvideExactChange(levelsData.data, change);
 
-              if (!hasExactChange) {
-                setPayStatus("Cancelling");
-                setCashmaticMessage("❌ Machine cannot provide exact change. Returning full amount...");
+              // if (!hasExactChange) {
+              //   setPayStatus("Cancelling");
+              //   setCashmaticMessage("❌ Machine cannot provide exact change. Returning full amount...");
 
-                const withdrawResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartWithdrawal`, {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${authToken}`,
-                  },
-                  body: JSON.stringify({ amount: inserted }),
-                });
+              //   const withdrawResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartWithdrawal`, {
+              //     method: "POST",
+              //     headers: {
+              //       "Content-Type": "application/json",
+              //       Authorization: `Bearer ${authToken}`,
+              //     },
+              //     body: JSON.stringify({ amount: inserted }),
+              //   });
 
-                return;
-              } else {
-                setPayStatus("Dispensing");
-                setCashmaticMessage(`💵 Dispensing change: €${(change / 100).toFixed(2)}`);
+              //   return;
+              // } else {
+
 
                 const withdrawResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartWithdrawal`, {
                   method: "POST",
@@ -497,18 +507,31 @@ const trackActiveTransaction = async (authToken: string) => {
                   },
                   body: JSON.stringify({ amount: change }),
                 });
-              }
+
+                const response = await withdrawResponse.json();
+                if (response.code === 0) {
+                  const { requested, dispensed } = lastData.data;
+                  setReturnedAmount(dispensed);
+                  setPayStatus("Dispensing");
+                  // setCashmaticMessage(`💵 Dispensing change: $${(dispensed / 100).toFixed(2)} / $${(requested / 100).toFixed(2)}`);
+                }
+                // const withdrawData = await withdrawResponse.json();
+                // const { dispensed, requested } = withdrawData.data;
+                // setRequestedAmount(requested);
+                // setReturnedAmount(dispensed);
+              // }
             }
           }
         }
 
         // Wait for full change to be dispensed
-        if (notDispensed === 0 && operation === "idle") {
-          completed = true;
-
-          setPayStatus("Completed");
-          setCashmaticMessage(`✅ Payment Completed. Change returned: €${(dispensed / 100).toFixed(2)}`);
-          setCashmaticProgress(100);
+        if (notDispensed === 0 && operation === "idle" && payStatus !== "Cancelled") {
+          // if(payStatus !== "Cancelled"){
+            completed = true;
+            setPayStatus("Completed");
+            setCashmaticMessage(`✅ Payment Completed. Change returned: $${previousDispensed}`);
+            setCashmaticProgress(100);
+          // }
         }
       } else {
         setCashmaticMessage(`⚠️ Error: ${data.message}`);
@@ -518,20 +541,68 @@ const trackActiveTransaction = async (authToken: string) => {
       setCashmaticMessage("❌ Connection error. Please check network and retry.");
     }
 
-    if (!completed && payStatus !== "Cancelled") {
+    if ((!completed) && (payStatus !== "Cancelled") && (payStatus !== "Completed")) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       attempt++;
     } else {
+      // if(payStatus ==  "Cancelled")
       break;
     }
   }
 };
 
+const checkChangeBeforePayment = async (cartTotal, token) => {
+  const levelsResponse = await fetch(`${CASHMATIC_API_URL}/device/AllLevels`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  const levelsData = await levelsResponse.json();
+  if (levelsData.code !== 0) {
+    toast.error("❌ Error fetching cash levels.");
+    return false;
+  }
+
+  // Round to nearest whole dollar (no cents)
+  const priceDollars = Math.round(cartTotal);
+  const canChangeAll = canHandleAllChangePossibilities(levelsData.data, priceDollars);
+
+  if (!canChangeAll) {
+    toast.warning("⚠️ Machine may not have enough change. Please insert the exact amount.");
+    return false;
+  }
+
+  return true; // ✅ Safe to proceed
+};
+
+
+
+
+const canHandleAllChangePossibilities = (
+  denoms: any[],
+  priceDollars: number,
+  maxOverpayDollars = 99 // Max: $99 overpay
+) => {
+  const maxChange = maxOverpayDollars;
+
+  for (let change = 1; change <= maxChange; change++) {
+    const isPossible = canProvideExactChange(denoms, change * 100); // convert to cents
+    if (!isPossible) {
+      console.warn(`🚫 Cannot provide change for overpayment: $${change}`);
+      return false;
+    }
+  }
+
+  return true;
+};
+
 
 const canProvideExactChange = (denominations: any[], change: number) => {
-  // Sort denominations in descending order
   const sortedDenominations = denominations
-    .filter((d) => d.level > 0) // Only consider denominations with available levels
+    .filter((d) => d.level > 0)
     .sort((a, b) => b.value - a.value);
 
   let remainingChange = change;
@@ -549,8 +620,10 @@ const canProvideExactChange = (denominations: any[], change: number) => {
     }
   }
 
-  return remainingChange === 0; // Exact change is possible if remainingChange is 0
+  return remainingChange === 0;
 };
+
+
 
 
 
@@ -583,36 +656,65 @@ const cancelPayment = async () => {
     return;
   }
 
-  if(payStatus.includes('Dispensing'))
-    return;
+  if (payStatus.includes('Dispensing')) return;
 
   try {
     setCashmaticMessage("⏳ Cancelling Payment...");
-    setPayStatus("Cancelling...");
+    setPayStatus("Cancelling");
 
-    const response = await fetch(`${CASHMATIC_API_URL}/transaction/CancelPayment`, {
+    // Stop the current deposit
+    const stopResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StopDeposit`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
     });
+    const stopData = await stopResponse.json();
+    if (stopData.code !== 0) throw new Error("Stop deposit failed: " + stopData.message);
 
-    const data = await response.json();
+    // Withdraw the inserted amount
+    setCashmaticMessage("💵 Returning inserted cash...");
+    const withdrawResponse = await fetch(`${CASHMATIC_API_URL}/transaction/StartWithdrawal`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ amount: insertedAmount }),
+    });
+    const withdrawData = await withdrawResponse.json();
+    if (withdrawData.code !== 0) throw new Error("Withdrawal failed: " + withdrawData.message);
 
-    if (data.code === 0) {
-      setPayStatus("Cancelled");
-      setCashmaticMessage("❌ Payment Cancelled.");
-      setCashmaticProgress(5);
-      setInsertedAmount(0);
-      setRequestedAmount(0);
-      // ❌ Do NOT reset `returnedAmount`—we need to show the returned cash
-    } else {
-      setCashmaticMessage(`⚠️ Error Cancelling: ${data.message}`);
+    // Track withdrawal completion
+    let withdrawalAttempts = 0;
+    let withdrawalCompleted = false;
+    while (withdrawalAttempts < 30 && !withdrawalCompleted) {
+      const activeTxn = await fetch(`${CASHMATIC_API_URL}/device/ActiveTransaction`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const activeData = await activeTxn.json();
+      if (activeData.code === 0) {
+        const { dispensed, notDispensed, operation } = activeData.data;
+        setReturnedAmount(dispensed / 100);
+        if (notDispensed === 0 && operation === "idle") {
+          withdrawalCompleted = true;
+          break;
+        }
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      withdrawalAttempts++;
     }
+
+    setPayStatus("Cancelled");
+    setCashmaticMessage(`❌ Payment Cancelled. Returned: $${(insertedAmount / 100).toFixed(2)}`);
+    setReturnedAmount(insertedAmount / 100);
   } catch (error) {
-    console.error("❌ Error cancelling payment:", error);
-    setCashmaticMessage("❌ Error connecting to Cashmatic.");
+    setCashmaticMessage(`❌ Cancellation Error: ${error.message}`);
   }
 };
 
@@ -839,7 +941,19 @@ const cancelPayment = async () => {
 import { Loader, CheckCircle, AlertCircle, Clock } from "lucide-react";
 
 // Update the CashmaticPaymentDialog component with these changes
-const CashmaticPaymentDialog = ({ 
+interface CashmaticPaymentDialogProps {
+  isOpen: boolean;
+  status: string;
+  message: string;
+  progress: number;
+  inserted: number;
+  requested: number;
+  returnedAmount: number;
+  onClose: () => void;
+  cancelPayment: () => void;
+}
+
+const CashmaticPaymentDialog: React.FC<CashmaticPaymentDialogProps> = ({ 
   isOpen, 
   status, 
   message, 
@@ -917,7 +1031,7 @@ const CashmaticPaymentDialog = ({
 
           {(inserted !== null && requested !== null) && (
             <div className="space-y-1">
-              {!status.includes("Cancelled") && (
+              {!status.includes("Cancelled") && !status.includes("Dispensing") && !status.includes("Completed") && (
                 <p className="text-gray-600 text-sm">
                   Inserted: €{(inserted / 100).toFixed(2)} / Needed: €{(requested / 100).toFixed(2)}
                 </p>

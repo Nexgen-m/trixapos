@@ -27,6 +27,10 @@ def create_draft_sales_order(data):
         sales_order = frappe.get_doc({
             "doctype": "Sales Order",
             "customer": order_data.get("customer", "Guest Customer"),
+            "transaction_date": frappe.utils.nowdate(),
+            # "delivery_date": order_data.get("timestamp"),
+            "delivery_date": frappe.utils.nowdate(),
+            "set_warehouse": "Goods In Transit - NSD",
             "items": [
                 {
                     "item_code": item.get("item_code"),

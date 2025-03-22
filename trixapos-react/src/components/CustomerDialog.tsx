@@ -198,8 +198,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { useFrappeAuth, useFrappePostCall } from "frappe-react-sdk";
+import { useFrappePostCall } from "frappe-react-sdk";
 import { useCustomerMeta, useCustomerGroups } from "@/hooks/fetchers/useCustomers";
+import { useAuth } from "@/lib/auth"; // Import the useAuth hook
 
 interface CustomerDialogProps {
   isOpen: boolean;
@@ -210,9 +211,12 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
   const [customerName, setCustomerName] = useState("");
   const [customerType, setCustomerType] = useState("");
   const [customerGroup, setCustomerGroup] = useState("");
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const firstInputRef = useRef<HTMLInputElement>(null);
 
-  const { currentUser, isValidating } = useFrappeAuth();
+  // Use the useAuth hook for authentication
+  const { currentUser, authLoading } = useAuth();
   const isLoggedIn = !!currentUser;
 
   const { data: metaData, isLoading: isMetaLoading } = useCustomerMeta();
@@ -221,13 +225,22 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
   const {
     call: createCustomer,
     loading: isCreating,
-    error,
+    error: apiError,
   } = useFrappePostCall("trixapos.api.customer_api.create_customer");
 
   const mandatoryFields = metaData?.mandatoryFields || [];
   const customerTypes = metaData?.customer_type_options || [];
 
-  const isFormDisabled = isCreating || isMetaLoading || isCustomerGroupsLoading;
+  const isFormDisabled = isCreating || isMetaLoading || isCustomerGroupsLoading || authLoading;
+  const isFormValid = customerName && customerType && customerGroup;
+
+  const resetForm = () => {
+    setCustomerName("");
+    setCustomerType("");
+    setCustomerGroup("");
+    setError("");
+    setSuccessMessage("");
+  };
 
   useEffect(() => {
     if (isOpen && firstInputRef.current) firstInputRef.current.focus();
@@ -235,16 +248,14 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
 
   useEffect(() => {
     if (!isOpen) {
-      setCustomerName("");
-      setCustomerType("");
-      setCustomerGroup("");
+      resetForm();
     }
   }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!customerName || !customerType || !customerGroup) return;
 
-    if (!isLoggedIn || isValidating) return;
+    if (!isLoggedIn || authLoading) return;
 
     try {
       const response = await createCustomer({
@@ -254,8 +265,19 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
       });
 
       console.log("✅ API Response:", response);
+
+      // Show success message
+      setSuccessMessage("Customer created successfully!");
+      setTimeout(() => {
+        onClose(); // Close the dialog after 2 seconds
+      }, 2000);
     } catch (err) {
       console.error("❌ API call failed:", err);
+      if (err instanceof Error) {
+        setError(err.message || "Failed to create customer. Please try again.");
+      } else {
+        setError("Failed to create customer. Please try again.");
+      }
     }
   };
 
@@ -266,6 +288,20 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
   const handleCustomerGroupChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setCustomerGroup(e.target.value);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && !isFormDisabled && isFormValid) {
+        handleSubmit();
+      }
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isFormDisabled, isFormValid, handleSubmit, onClose]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -293,9 +329,14 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
             <label className="block text-sm font-medium">
               Customer Type {mandatoryFields.includes("customer_type") && <span className="text-red-500">*</span>}
             </label>
-            <select value={customerType} onChange={handleCustomerTypeChange} className="w-full p-2 border rounded-lg" disabled={isFormDisabled}>
+            <select
+              value={customerType}
+              onChange={handleCustomerTypeChange}
+              className="w-full p-2 border rounded-lg"
+              disabled={isFormDisabled}
+            >
               <option value="">Select Customer Type</option>
-              {customerTypes.map((type) => (
+              {customerTypes.map((type: string) => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
@@ -305,21 +346,31 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
             <label className="block text-sm font-medium">
               Customer Group {mandatoryFields.includes("customer_group") && <span className="text-red-500">*</span>}
             </label>
-            <select value={customerGroup} onChange={handleCustomerGroupChange} className="w-full p-2 border rounded-lg" disabled={isFormDisabled}>
+            <select
+              value={customerGroup}
+              onChange={handleCustomerGroupChange}
+              className="w-full p-2 border rounded-lg"
+              disabled={isFormDisabled}
+            >
               <option value="">Select Customer Group</option>
-              {customerGroups?.map((group) => (
-                <option key={group} value={group}>{group}</option>
-              ))}
+              {isCustomerGroupsLoading ? (
+                <option disabled>Loading...</option>
+              ) : (
+                customerGroups?.map((group: string) => (
+                  <option key={group} value={group}>{group}</option>
+                ))
+              )}
             </select>
           </div>
 
           {/* Show errors */}
-          {error && <p className="text-red-500 text-sm">{error.message || "Failed to create customer."}</p>}
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+          {successMessage && <p className="text-green-500 text-sm">{successMessage}</p>}
         </div>
 
         <div className="flex justify-end space-x-2 mt-4">
           <Button variant="outline" onClick={onClose} disabled={isFormDisabled}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={isFormDisabled}>
+          <Button onClick={handleSubmit} disabled={isFormDisabled || !isFormValid}>
             {isCreating ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -334,6 +385,3 @@ export function CustomerDialog({ isOpen, onClose }: CustomerDialogProps) {
     </Dialog>
   );
 }
-
-
-

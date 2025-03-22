@@ -10,6 +10,7 @@ import { redirect } from "react-router-dom";
 // Import our custom Frappe API helper. This wrapper around the frappe-js-sdk's call method
 // is used to perform online API calls for draft sales orders.
 import { fetchFromFrappe } from "@/lib/frappeApi";
+import { createDraftOrder } from "@/lib/createDraftOrder";
 
 // Define a new type for orders
 interface Order {
@@ -109,25 +110,28 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       toast.error("Cannot hold an empty cart.");
       return;
     }
+
     // Build order payload from current state
     const orderPayload = {
       customer: customer?.name || "Guest Customer",
       total,
       note: draftName,
-      items: state.cart,
+      company: "Nexgen Solutions", //mandatory
+      transaction_date: new Date(), // Format as YYYY-MM-DD
+      items: state.cart.map((item) => ({
+        item_code: item.item_code,
+        // item_name can be included if needed on the backend,
+        qty: item.qty,
+        rate: item.price_list_rate || 0,
+        discount: item.discount || 0,
+      })),
       timestamp: Date.now(),
     };
 
     if (navigator.onLine) {
       try {
-        // Call ERPNext API to create a draft Sales Order.
-        // This endpoint should create the Sales Order in draft (unsubmitted) state.
-        const response = await fetchFromFrappe(
-          "trixapos.api.sales_order.create_draft_sales_order",
-          {
-            args: orderPayload,
-          }
-        );
+        // Use the new createDraftOrder function
+        const response = await createDraftOrder(orderPayload);
         if (response.success) {
           toast.success("Draft order saved online!");
           // Clear the cart and total once saved online.
@@ -140,13 +144,38 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         }
       } catch (error) {
         toast.error("Failed to save online. Saving order offline instead.");
-        console.error(error);
+        console.log(error);
       }
     }
+
     // Offline fallback: generate a unique id with "offline-" prefix.
-    const offlineOrder = { id: `offline-${Date.now()}`, ...orderPayload };
+    const offlineOrder: Order = {
+      id: `offline-${Date.now()}`,
+      customer: customer?.name || "Guest Customer",
+      total,
+      note: draftName,
+      items: state.cart.map((item) => ({
+        item_code: item.item_code,
+        item_name: item.item_name, // Ensure item_name is included
+        qty: item.qty,
+        price_list_rate: item.price_list_rate || 0, // Ensure rate is provided
+        discount: item.discount || 0, // Ensure discount is provided
+        item_group: item.item_group || "Default Group", // Add missing property
+        name: item.name || item.item_name, // Add missing property
+        stock_qty: item.stock_qty || 0, // Add missing property
+      })),
+      timestamp: Date.now(), // Optional, not used in ERPNext
+    };
+
     await saveOrderOffline(offlineOrder);
+
+    // Debugging: Log the offline order and current state
+    console.log("Offline Order:", offlineOrder);
+    console.log("Current Held Orders:", state.heldOrders);
+
+    // Update the state
     set((state) => ({
+      ...state, // Preserve other state properties
       heldOrders: [...state.heldOrders, offlineOrder],
       cart: [],
       total: 0,
@@ -510,4 +539,6 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         : 0,
     }));
   },
+
+  // completed orders when payment by cashmatic is done
 }));

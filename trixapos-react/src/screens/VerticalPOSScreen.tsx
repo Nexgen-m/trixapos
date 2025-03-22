@@ -1,6 +1,7 @@
 // import React, { useState, useEffect } from "react";
 // import { motion, AnimatePresence } from "framer-motion";
 // import { usePOSStore } from "@/hooks/Stores/usePOSStore";
+// import { usePOSProfile } from "@/hooks/fetchers/usePOSProfile"; // Import the usePOSProfile hook
 // import { PaymentPage } from "@/components/payment/PaymentPage";
 // import { PrePaymentPage } from "@/components/payment/PrePaymentPage";
 // import { ItemList } from "@/components/ItemList";
@@ -15,9 +16,12 @@
 //   Receipt,
 //   ChevronDown,
 //   ChevronUp,
+//   ChevronRight,
 //   Grid,
 // } from "lucide-react";
-// import { getCategoryEmoji } from "../components/layout/categoryIcons"; // Import the icon function
+// import { getCategoryEmoji } from "../components/layout/categoryIcons";
+// import { Modal } from "antd"; // Import Modal component for the prompt
+// import screenfull from "screenfull"; // Import screenfull.js
 
 // interface ItemGroup {
 //   name: string;
@@ -39,19 +43,33 @@
 //     setSelectedCategory,
 //   } = usePOSStore();
 
+//   const { showSubcategories, FullScreenMode } = usePOSProfile(); // Get the showSubcategories and FullScreenMode flags
+
 //   const [isPrePaymentOpen, setIsPrePaymentOpen] = useState(false);
 //   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
 //   const [searchTerm, setSearchTerm] = useState("");
 //   const [isCartExpanded, setIsCartExpanded] = useState(false);
 //   const [categories, setCategories] = useState<GroupedCategories>({});
+//   const [expandedParent, setExpandedParent] = useState<string | null>(null);
 //   const [loading, setLoading] = useState(true);
+//   const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false); // State for showing the prompt
 
 //   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0);
-//   const handleSkip = () => {
-//     setIsPrePaymentOpen(false); // Close PrePaymentPage
-//     setIsPaymentOpen(true); // Open PaymentPage
+
+//   // Show the fullscreen prompt when the component mounts
+//   useEffect(() => {
+//     if (FullScreenMode) {
+//       setShowFullscreenPrompt(true);
+//     }
+//   }, [FullScreenMode]);
+
+//   // Function to enter fullscreen mode
+//   const enterFullscreen = () => {
+//     if (screenfull.isEnabled) {
+//       screenfull.request();
+//       setShowFullscreenPrompt(false); // Hide the prompt after entering fullscreen
+//     }
 //   };
-  
 
 //   // Fetch item groups from Frappe API
 //   useEffect(() => {
@@ -88,22 +106,63 @@
 //     fetchCategories();
 //   }, []);
 
+//   // Handle Pay button click
 //   const handlePayClick = () => {
 //     setIsPrePaymentOpen(true); // Open PrePaymentPage
 //   };
 
+//   // Handle PrePaymentPage close
 //   const handlePrePaymentClose = () => {
 //     setIsPrePaymentOpen(false); // Close PrePaymentPage
 //     setIsPaymentOpen(false); // Close PaymentPage
 //   };
 
+//   // Handle Proceed to Payment button click
 //   const handleProceedToPayment = () => {
 //     setIsPrePaymentOpen(false); // Close PrePaymentPage
 //     setIsPaymentOpen(true); // Open PaymentPage
 //   };
 
+//   // Handle Skip button click
+//   const handleSkip = () => {
+//     setIsPrePaymentOpen(false); // Close PrePaymentPage
+//     setIsPaymentOpen(true); // Open PaymentPage
+//   };
+
+//   // Handle parent category click
+//   const handleParentCategoryClick = (parent: string) => {
+//     if (expandedParent === parent) {
+//       setExpandedParent(null); // Collapse if already expanded
+//     } else {
+//       setExpandedParent(parent); // Expand the clicked parent category
+//     }
+//     setSelectedCategory(parent); // Set the selected category
+//   };
+
 //   return (
 //     <div className="h-full flex flex-col bg-gray-50">
+//       {/* Fullscreen Prompt */}
+//       {showFullscreenPrompt && (
+//         <Modal
+//           title="Enter Fullscreen Mode"
+//           visible={true}
+//           onOk={enterFullscreen}
+//           onCancel={() => {}} // Prevent closing the modal
+//           closable={false} // Disable closing the modal via the close icon or clicking outside
+//           footer={[
+//             <Button
+//               key="enter-fullscreen"
+//               type="primary"
+//               onClick={enterFullscreen}
+//             >
+//               Enter Fullscreen
+//             </Button>,
+//           ]}
+//         >
+//           <p>For the best experience, please enable fullscreen mode.</p>
+//         </Modal>
+//       )}
+
 //       {/* Top Bar */}
 //       <div className="bg-white border-b border-gray-200 p-4 space-y-4">
 //         {/* Search Bar */}
@@ -117,38 +176,83 @@
 //           </div>
 //         </div>
 
-//         {/* Category Slider */}
-//         <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
-//           <Button
-//             variant={selectedCategory === "" ? "default" : "outline"}
-//             className="flex-shrink-0 h-20 px-6 flex flex-col items-center gap-2"
-//             onClick={() => setSelectedCategory("")}
-//           >
-//             <Grid className="w-6 h-6" />
-//             <span>All Items</span>
-//           </Button>
-//           {Object.entries(categories).map(([parent, subCategories]) => {
-//             // Skip the "root" parent category
-//             if (parent === "root") return null;
+//         {/* Parent Categories */}
+//         <div className="relative">
+//           <div className="absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+//           <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+//             {/* "All Items" Button */}
+//             <Button
+//               variant={selectedCategory === "" ? "default" : "outline"}
+//               className="flex-shrink-0 h-24 px-6 flex flex-col items-center gap-2 pt-3"
+//               onClick={() => {
+//                 setSelectedCategory("");
+//                 setExpandedParent(null);
+//               }}
+//             >
+//               <Grid className="w-6 h-6" />
+//               <span>All Items</span>
+//             </Button>
 
-//             return (
-//               <Button
-//                 key={parent}
-//                 variant={selectedCategory === parent ? "default" : "outline"}
-//                 className="flex-shrink-0 h-20 px-6 flex flex-col items-center gap-2"
-//                 onClick={() => setSelectedCategory(parent)}
-//               >
-//                 <span className="text-2xl">{getCategoryEmoji(parent)}</span>
-//                 <span>{parent}</span>
-//               </Button>
-//             );
-//           })}
+//             {/* Parent Categories */}
+//             {Object.entries(categories).map(([parent, subCategories]) => {
+//               if (parent === "root") return null;
+
+//               return (
+//                 <Button
+//                   key={parent}
+//                   variant={selectedCategory === parent ? "default" : "outline"} // Highlight if selected
+//                   className="flex-shrink-0 h-24 px-6 flex flex-col items-center gap-2 pt-3"
+//                   onClick={() => {
+//                     // Always set the selected category
+//                     setSelectedCategory(parent);
+
+//                     // Toggle expansion only if showSubcategories is true
+//                     if (showSubcategories) {
+//                       handleParentCategoryClick(parent);
+//                     } else {
+//                       // If subcategories are not allowed, collapse any expanded parent
+//                       setExpandedParent(null);
+//                     }
+//                   }}
+//                 >
+//                   <span className="text-2xl">{getCategoryEmoji(parent)}</span>
+//                   <span>{parent}</span>
+//                   {/* Show chevron only if showSubcategories is true */}
+//                   {showSubcategories && (
+//                     expandedParent === parent ? (
+//                       <ChevronDown className="w-4 h-4" />
+//                     ) : (
+//                       <ChevronRight className="w-4 h-4" />
+//                     )
+//                   )}
+//                 </Button>
+//               );
+//             })}
+//           </div>
 //         </div>
+
+//         {/* Subcategories Section */}
+//         {showSubcategories && expandedParent && ( // Only show subcategories if showSubcategories is true
+//           <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+//             {categories[expandedParent].map((subCategory) => (
+//               <Button
+//                 key={subCategory.name}
+//                 variant={
+//                   selectedCategory === subCategory.name ? "default" : "outline"
+//                 }
+//                 className="flex-shrink-0 h-16 px-6 flex flex-col items-center gap-2"
+//                 onClick={() => setSelectedCategory(subCategory.name)}
+//               >
+//                 <span>{subCategory.name}</span>
+//               </Button>
+//             ))}
+//           </div>
+//         )}
 //       </div>
 
 //       {/* Main Content Area */}
 //       <div className="flex-1 overflow-hidden">
-//         <ItemList searchTerm={searchTerm} />
+//         <ItemList searchTerm={searchTerm} selectedCategory={selectedCategory} />
 //       </div>
 
 //       {/* Cart Section */}
@@ -257,13 +361,13 @@
 //       </div>
 
 //       {/* Pre-Payment Options Page */}
-// <PrePaymentPage
-//   isOpen={isPrePaymentOpen}
-//   onClose={handlePrePaymentClose} // Close button triggers this
-//   onSkip={handleSkip} // Skip button triggers this
-//   onProceed={handleProceedToPayment} // Proceed button triggers this
-//   total={total}
-// />
+//       <PrePaymentPage
+//         isOpen={isPrePaymentOpen}
+//         onClose={handlePrePaymentClose}
+//         onSkip={handleSkip}
+//         onProceed={handleProceedToPayment}
+//         total={total}
+//       />
 
 //       {/* Payment Page */}
 //       <PaymentPage
@@ -273,6 +377,10 @@
 //     </div>
 //   );
 // }
+
+
+
+
 
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -613,3 +721,5 @@ export function VerticalPOSScreen() {
     </div>
   );
 }
+
+

@@ -95,3 +95,4 @@ export function useProducts(category: string, searchTerm: string, customer: stri
     } 
   };
 }
+

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { call } from "@/lib/frappe"; // Using frappe-js-sdk
+import { fetchWithCredentials } from "@/lib/fetchWithCredentials";
 
 /**
  * Custom Hook to fetch customers using custom API.
@@ -8,9 +9,9 @@ export function useCustomers(searchTerm: string = "", limit: number = 50) {
   return useQuery({
     queryKey: ["customers", searchTerm],
     queryFn: () => fetchCustomers(searchTerm, limit),
-    staleTime: 10 * 60 * 1000, // Cache customers for 10 minutes
-    retry: 2, // Retry fetching twice before failing
-    refetchOnWindowFocus: false, // Prevent refetching when switching tabs
+    staleTime: 10 * 60 * 1000,
+    retry: 2,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -45,7 +46,7 @@ export function useCustomerGroups() {
  */
 export async function fetchCustomers(searchTerm: string = "", limit: number = 50) {
   try {
-    const response = await call.get("trixapos.api.customer_api.get_customers", {
+    const response = await fetchWithCredentials("trixapos.api.customer_api.get_customers", {
       search_term: searchTerm,
       limit,
     });
@@ -75,7 +76,7 @@ export async function fetchCustomers(searchTerm: string = "", limit: number = 50
  */
 export async function fetchCustomerMeta() {
   try {
-    const response = await call.get("trixapos.api.customer_api.get_customer_meta");
+    const response = await fetchWithCredentials("trixapos.api.customer_api.get_customer_meta");
 
     console.log("Customer Meta API Response:", response); // Debugging API response
 
@@ -102,7 +103,7 @@ export async function fetchCustomerMeta() {
  */
 export async function fetchCustomerGroups() {
   try {
-    const response = await call.get("trixapos.api.customer_api.get_customer_groups");
+    const response = await fetchWithCredentials("trixapos.api.customer_api.get_customer_groups");
 
     console.log("Customer Groups API Response:", response); // Debugging API response
 

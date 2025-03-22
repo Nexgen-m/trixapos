@@ -26,6 +26,7 @@ export function usePOSProfile() {
   const customDisplayMode = enableCompactModeOption ? posProfile?.custom_display_mode || "Full Mode" : "Full Mode";  // Default to "Full Mode" if compact mode option is disabled
   const showSubcategories = Boolean(posProfile?.custom_show_subcategories);  // Add this field
   const AddNewCustomer = Boolean(posProfile?.custom_enable_use_add_new_customer);  // Add this field
+  const FullScreenMode = Boolean(posProfile?.custom_enable_fullscreen_mode);  // Add this field
   // Function to update the custom_display_mode
   const updateCustomDisplayMode = async (displayMode: string) => {
     if (!posProfile?.name) {
@@ -63,6 +64,7 @@ export function usePOSProfile() {
     custom_enable_close_pos: Boolean(posProfile?.custom_enable_close_pos),
     showSubcategories,  // Return the showSubcategories flag
     AddNewCustomer,
+    FullScreenMode,
     payments: posProfile?.payments || [],
     defaultPaymentMethod: posProfile?.default_payment_method || "cash", // ✅ Get the default method
     isLoading,

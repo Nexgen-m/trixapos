@@ -31,6 +31,7 @@ import { CustomerDialog } from "@/components/CustomerDialog";
 import { useAuth } from "@/lib/auth";
 import { usePOSStore } from "../../hooks/Stores/usePOSStore";
 import { usePOSProfile } from "../../hooks/fetchers/usePOSProfile";
+import screenfull from "screenfull"; // Import screenfull.js
 
 export function OptionsMenu() {
   const { verifyUserPassword, logoutUser } = useAuth();
@@ -46,8 +47,8 @@ export function OptionsMenu() {
     custom_enable_display_settings,
     custom_enable_close_pos,
     AddNewCustomer,
+    FullScreenMode,
   } = usePOSProfile();
-
 
   // Get values from POS store
   const isCompactMode = usePOSStore((state) => state.isCompactMode);
@@ -58,7 +59,6 @@ export function OptionsMenu() {
   const toggleLayout = usePOSStore((state) => state.toggleLayout);
 
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
-
 
   // Fetch POS profile settings
   const {
@@ -109,6 +109,12 @@ export function OptionsMenu() {
     const isValid = await verifyUserPassword(password);
 
     if (isValid) {
+      // Exit fullscreen mode if enabled
+      if (screenfull.isEnabled && screenfull.isFullscreen) {
+        screenfull.exit();
+      }
+
+      // Logout the user
       await logoutUser();
       navigate("/login", { replace: true });
     } else {
@@ -135,6 +141,13 @@ export function OptionsMenu() {
       tempIsCompactMode ? "Compact Mode" : "Full Mode"
     );
 
+    // Trigger fullscreen mode if enabled
+    if (tempIsFullScreenMode && screenfull.isEnabled) {
+      screenfull.request();
+    } else if (screenfull.isEnabled && screenfull.isFullscreen) {
+      screenfull.exit();
+    }
+
     // Close the dialog
     setIsDialogOpen(false);
   };
@@ -160,78 +173,77 @@ export function OptionsMenu() {
 
       {/* Popover Menu */}
       <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" className="p-4 rounded-full transition-all">
-          <MoreVertical className="h-8 w-8" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-72 p-2 space-y-1 shadow-lg bg-white rounded-lg">
-        {custom_enable_recent_orders && (
-          <button
-            className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
-            onClick={() => navigate("/trixapos/OrderScreen")}
-          >
-            <Clock className="h-5 w-5 text-gray-600" />
-            <span className="ml-2">Toggle Recent Orders</span>
-          </button>
-        )}
-        {custom_enable_form_view && (
-          <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base">
-            <FileText className="h-5 w-5 text-gray-600" />
-            <span className="ml-2">Open Form View</span>
-          </button>
-        )}
-        {custom_enable_save_as_draft && (
-          <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base">
-            <Save className="h-5 w-5 text-gray-600" />
-            <span className="ml-2">Save as Draft</span>
-          </button>
-        )}
-        
-        {/* Add the "Create New Customer" button */}
-      {AddNewCustomer && (
-        <button
-          className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
-          onClick={() => setIsCustomerDialogOpen(true)} // Open the dialog
-        >
-          <UserPlus className="h-5 w-5 text-gray-600" />
-          <span className="ml-2">Add New Customer</span>
-        </button>
-      )}
-
-      {/* Customer Dialog Component */}
-      <CustomerDialog
-        isOpen={isCustomerDialogOpen}
-        onClose={() => setIsCustomerDialogOpen(false)} // Close the dialog
-      />
-  
-
-        {custom_enable_display_settings && (
-          <>
-            <div className="border-t my-2"></div>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" className="p-4 rounded-full transition-all">
+            <MoreVertical className="h-8 w-8" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-72 p-2 space-y-1 shadow-lg bg-white rounded-lg">
+          {custom_enable_recent_orders && (
             <button
-              onClick={() => setIsDialogOpen(true)}
-              className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base font-medium"
+              className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
+              onClick={() => navigate("/trixapos/OrderScreen")}
             >
-              <Settings className="h-5 w-5 text-gray-600" />
-              <span className="ml-2">Display Settings</span>
+              <Clock className="h-5 w-5 text-gray-600" />
+              <span className="ml-2">Toggle Recent Orders</span>
             </button>
-          </>
-        )}
-        {custom_enable_close_pos && (
-          <>
-            <div className="border-t my-2"></div>
+          )}
+          {custom_enable_form_view && (
+            <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base">
+              <FileText className="h-5 w-5 text-gray-600" />
+              <span className="ml-2">Open Form View</span>
+            </button>
+          )}
+          {custom_enable_save_as_draft && (
+            <button className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base">
+              <Save className="h-5 w-5 text-gray-600" />
+              <span className="ml-2">Save as Draft</span>
+            </button>
+          )}
+
+          {/* Add the "Create New Customer" button */}
+          {AddNewCustomer && (
             <button
-             onClick={() => setIsLogoutDialogOpen(true)}
-              className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base text-red-600 font-medium"
+              className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base"
+              onClick={() => setIsCustomerDialogOpen(true)} // Open the dialog
             >
-              <XCircle className="h-5 w-5 text-red-600" />
-              <span className="ml-2">Close the POS</span>
+              <UserPlus className="h-5 w-5 text-gray-600" />
+              <span className="ml-2">Add New Customer</span>
             </button>
-          </>
-        )}
-      </PopoverContent>
-    </Popover>
+          )}
+
+          {/* Customer Dialog Component */}
+          <CustomerDialog
+            isOpen={isCustomerDialogOpen}
+            onClose={() => setIsCustomerDialogOpen(false)} // Close the dialog
+          />
+
+          {custom_enable_display_settings && (
+            <>
+              <div className="border-t my-2"></div>
+              <button
+                onClick={() => setIsDialogOpen(true)}
+                className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base font-medium"
+              >
+                <Settings className="h-5 w-5 text-gray-600" />
+                <span className="ml-2">Display Settings</span>
+              </button>
+            </>
+          )}
+          {custom_enable_close_pos && (
+            <>
+              <div className="border-t my-2"></div>
+              <button
+                onClick={() => setIsLogoutDialogOpen(true)}
+                className="w-full flex items-center p-3 hover:bg-gray-100 rounded-lg text-base text-red-600 font-medium"
+              >
+                <XCircle className="h-5 w-5 text-red-600" />
+                <span className="ml-2">Close the POS</span>
+              </button>
+            </>
+          )}
+        </PopoverContent>
+      </Popover>
 
       {/* Display Settings Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={handleCloseDialog}>
@@ -346,30 +358,32 @@ export function OptionsMenu() {
           )}
 
           {/* Full Screen Mode Toggle */}
-          <div className="p-4 border rounded-lg bg-gray-50">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700">
-                  Full Screen Mode
-                </h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  Maximize the POS interface
-                </p>
-              </div>
-              <button
-                onClick={handleFullScreenModeToggle}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  tempIsFullScreenMode ? "bg-blue-600" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
-                    tempIsFullScreenMode ? "translate-x-6" : "translate-x-1"
+          {FullScreenMode && (
+            <div className="p-4 border rounded-lg bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700">
+                    Full Screen Mode
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Maximize the POS interface
+                  </p>
+                </div>
+                <button
+                  onClick={handleFullScreenModeToggle}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    tempIsFullScreenMode ? "bg-blue-600" : "bg-gray-300"
                   }`}
-                />
-              </button>
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                      tempIsFullScreenMode ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Apply Changes Button */}
           <div className="flex justify-end pt-4 border-t">

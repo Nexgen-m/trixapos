@@ -103,7 +103,7 @@ def get_all_sales_invoices():
     """
     try:
         # Fetch all Sales Invoice documents from ERPNext.
-        sales_invoices = frappe.get_all("Sales Invoice", fields=["name", "customer", "posting_date", "due_date", "grand_total", "status"])
+        sales_invoices = frappe.get_all("Sales Invoice", fields=["title", "customer", "posting_date", "due_date", "grand_total", "status"])
         return {"success": True, "sales_invoices": sales_invoices}
     except Exception as e:
         frappe.log_error(title="get_all_sales_invoices Error", message=str(e))

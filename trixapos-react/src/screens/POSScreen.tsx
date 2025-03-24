@@ -34,6 +34,8 @@
 //   );
 // }
 
+
+
 import React, { useState, useEffect } from "react";
 import { ItemList } from "../components/ItemList";
 import { ItemSearch } from "../components/ItemSearch";
@@ -111,3 +113,4 @@ export function POSScreen() {
     </div>
   );
 }
+

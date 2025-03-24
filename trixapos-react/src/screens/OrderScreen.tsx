@@ -95,7 +95,7 @@ export const OrderScreen = () => {
     };
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
-  }, [syncOfflineOrders]);
+  }, [syncOfflineOrders, syncInvoices]);
 
   const handleLoadOrder = (id: string) => {
     loadHeldOrder(id);

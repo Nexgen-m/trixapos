@@ -91,11 +91,12 @@ def get_draft_sales_orders():
     Fetches all Sales Orders with docstatus = 0 (draft).
     Returns key fields: name, creation, total, custom_note, customer, and full items list.
     This is consumed by the POS frontend.
-    """
+    """ 
     try:
         orders = frappe.get_all(
             "Sales Order",
-            filters={"docstatus": 0},
+            filters={"docstatus": 0,
+                     "status": ["!=", "Cancelled"]},
             fields=["name", "creation", "total", "custom_note", "customer"]
         )
         

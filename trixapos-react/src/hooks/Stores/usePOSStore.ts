@@ -16,6 +16,7 @@ import { redirect } from "react-router-dom";
 import { fetchFromFrappe } from "@/lib/frappeApi";
 import { createDraftOrder } from "@/lib/createDraftOrder";
 import { fetchWithCredentials } from "@/lib/fetchWithCredentials";
+import { postWithCredentials } from "@/lib/postWithCredentials";
 import { createInvoice } from "@/lib/createInvoice";
 
 // Define a new type for orders
@@ -179,7 +180,6 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         // Use the new createDraftOrder function
         const response = await createDraftOrder(orderPayload);
         if (response.success) {
-          toast.success("Draft order saved online!");
           // Clear the cart and total once saved online.
           set({ cart: [], total: 0 });
           // Refresh the list of orders.
@@ -278,40 +278,60 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   // For online orders, we call our ERPNext API endpoint using fetchWithCredentials to include credentials.
   getDraftOrders: async () => {
     let onlineOrders: Order[] = [];
+
     if (navigator.onLine) {
       try {
-        const response = await fetchWithCredentials(
-          `http://38.242.204.206:8001/api/resource/Sales Order?fields=["name","customer_name","total","creation"]`
+        // (1) Basic fields from resource list
+        const mainResponse = await fetchWithCredentials(
+          `http://38.242.204.206:8001/api/resource/Sales Order?fields=["name","customer_name","total","creation"]&filters=[["docstatus","=","0"],["status","=","Cancelled"]]`
         );
 
-        // Handle HTML error responses
-        if (
-          typeof response === "string" &&
-          response.startsWith("<!DOCTYPE html>")
-        ) {
-          throw new Error("Server returned HTML error page");
+        if (!Array.isArray(mainResponse.data)) {
+          throw new Error("Expected mainResponse.data to be an array");
         }
 
-        console.log("API response:", JSON.stringify(response));
+        // (2) For each top-level order doc, fetch items
+        const fetchedOrders = await Promise.all(
+          mainResponse.data.map(async (doc: any) => {
+            let items: any[] = [];
+            try {
+              // fetch the items for this specific Sales Order
+              const itemResponse = await fetchWithCredentials(
+                `http://38.242.204.206:8001/api/resource/Sales Order/${doc.name}?fields=["items"]`
+              );
+              items = itemResponse.data?.items || [];
+            } catch (err) {
+              console.error("Failed to fetch items for", doc.name, err);
+            }
 
-        if (Array.isArray(response.data)) {
-          onlineOrders = (response.data).map((o: any) => ({
-            id: o.name,
-            timestamp: new Date(o.creation).getTime(),
-            total: o.total,
-            items: o.items || [],
-            // note: o.custom_note,
-            customer: o.customer_name,
-          }));
-        }
+            return {
+              id: doc.name,
+              timestamp: new Date(doc.creation).getTime(),
+              total: doc.total,
+              customer: doc.customer_name,
+              items: items.map((child: any) => ({
+                item_code: child.item_code,
+                item_name: child.item_name,
+                // Make sure we provide the field your CartItem expects:
+                price_list_rate: child.rate || 0,
+                qty: child.qty || 1,
+                discount: child.discount_percentage || 0,
+              })),
+            };
+          })
+        );
+
+        onlineOrders = fetchedOrders;
       } catch (error) {
         console.error("API Error:", error);
-        toast.error("Failed to fetch orders");
+        toast.error("Failed to fetch online orders");
       }
     }
+
     const offlineOrders = await getOfflineOrders();
     const mergedOrders = [...offlineOrders, ...onlineOrders];
     console.log("Merged draft orders:", mergedOrders);
+
     set({ heldOrders: mergedOrders });
     return mergedOrders;
   },
@@ -369,22 +389,23 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   removeHeldOrder: async (id: string) => {
     try {
       if (id.startsWith("offline-")) {
-        // Offline order: remove it from IndexedDB.
+        // offline only
         await removeOfflineOrder(id);
         set((state) => ({
           heldOrders: state.heldOrders.filter((o) => o.id !== id),
         }));
         toast.success(`Removed held order ${id}`);
       } else if (navigator.onLine) {
-        // Online order: call the cancellation endpoint instead of deletion.
-        const response = await fetchFromFrappe(
+        // online -> call your whitelisted method using POST
+        const response = await postWithCredentials(
           "trixapos.api.sales_order.cancel_order",
           {
-            args: { order_id: id },
+            data: JSON.stringify({ order_id: id }),
           }
         );
         if (!response.success) throw new Error(response.error);
-        // On successful cancellation, remove it from heldOrders and add it to rejectedOrders.
+
+        // On success, remove from heldOrders & add to rejected
         set((state) => {
           const removedOrder = state.heldOrders.find((o) => o.id === id);
           return {
@@ -408,13 +429,13 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   syncOfflineOrders: async () => {
     if (!navigator.onLine) return;
     const offlineOrders = await getOfflineOrders();
+
     for (const order of offlineOrders) {
       try {
-        const response = await fetchFromFrappe(
+        // POST to create_draft_sales_order with { data: JSON.stringify(order) }
+        const response = await postWithCredentials(
           "trixapos.api.sales_order.create_draft_sales_order",
-          {
-            args: order,
-          }
+          { data: JSON.stringify(order) }
         );
         if (response.success) {
           await removeOfflineOrder(order.id);
@@ -426,6 +447,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         console.error("Failed to sync offline order", order.id, error);
       }
     }
+
     await get().getDraftOrders();
   },
 
@@ -704,42 +726,54 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   },
 
   // Get all invoices (merge online and offline)
+  
   getInvoices: async () => {
     let onlineInvoices: Invoice[] = [];
-    // if (navigator.onLine) {
-    //   try {
-    //     const response = await fetchWithCredentials(
-    //       "trixapos.api.sales_invoice.get_all_sales_invoices"
-    //     );
-    //     if (Array.isArray(response)) {
-    //       onlineInvoices = response.map((inv: any) => ({
-    //         id: inv.name,
-    //         customer: inv.customer,
-    //         items: inv.items,
-    //         total: inv.total,
-    //         timestamp: new Date(inv.creation).getTime(),
-    //         status: inv.status,
-    //         paymentMethod: inv.payment_method,
-    //         note: inv.note,
-    //       }));
+    if (navigator.onLine) {
+        try {
+            const response = await fetch(
+                `http://38.242.204.206:8001/api/resource/Sales Invoice?fields=["name","customer_name","grand_total","posting_date","status","items"]&expand=items`,
+                {
+                    method: "GET",
+                    credentials: "include",
+                    headers: {
+                        Accept: "application/json",
+                    },
+                }
+            );
+            const responseData = await response.json();
+            if (Array.isArray(responseData.data)) {
+                onlineInvoices = responseData.data.map((inv: any) => ({
+                    id: inv.name,
+                    customer: inv.customer_name,
+                    items: Array.isArray(inv.items)
+                        ? inv.items.map((item: any) => ({
+                            item_name: item.item_name,
+                        }))
+                        : [], // Fallback to empty array
+                    total: inv.grand_total || 0, // Default total if undefined
+                    timestamp: inv.posting_date
+                        ? new Date(inv.posting_date).getTime()
+                        : null, // Handle missing posting_date
+                    status: inv.status || "Unknown", // Default status if undefined
+                }));
 
-    //       console.log("OnlineInvoices: ", onlineInvoices);
-    //     } else {
-    //       toast.error("Failed to fetch online invoices.");
-    //     }
-    //   } catch (error) {
-    //     toast.error("Error fetching online invoices.");
-    //     console.error(error);
-    //   }
-    // }
+                console.log("OnlineInvoices: ", onlineInvoices);
+            } else {
+                toast.error("Failed to fetch online invoices.");
+            }
+        } catch (error) {
+            toast.error("Error fetching online invoices.");
+            console.error(error);
+        }
+    }
 
     const offlineInvoices = await getInvoicesOffline();
-    console.log("offline invoices: ", offlineInvoices);
-    // const mergedInvoices = [...offlineInvoices, ...onlineInvoices];
-    set({ invoices: offlineInvoices });
-    return offlineInvoices;
-  },
-
+    console.log("Offline invoices: ", offlineInvoices);
+    const mergedInvoices = [...offlineInvoices, ...onlineInvoices];
+    set({ invoices: mergedInvoices });
+    return mergedInvoices;
+},
   // Load a specific invoice
   loadInvoice: (id) => {
     const invoice = get().invoices.find((inv) => inv.id === id);

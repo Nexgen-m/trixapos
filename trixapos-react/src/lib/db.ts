@@ -12,8 +12,8 @@ export const dbPromise = openDB("trixapos", 2, {
     }
     if (!db.objectStoreNames.contains("offline_invoices")) {
       db.createObjectStore("offline_invoices", {
-      keyPath: "id",
-      autoIncrement: false, // Use our provided id as key
+        keyPath: "id",
+        autoIncrement: false, // Use our provided id as key
       });
     }
   },
@@ -57,4 +57,4 @@ export async function getInvoicesOffline() {
   const db = await dbPromise;
   return db.getAll("offline_invoices");
   // return [];
-};
+}

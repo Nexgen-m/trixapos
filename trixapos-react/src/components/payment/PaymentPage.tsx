@@ -4,7 +4,7 @@ import { Calculator } from '../calculator/Calculator';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { usePOSStore } from '@/hooks/Stores/usePOSStore';
+import { Invoice, usePOSStore } from '@/hooks/Stores/usePOSStore';
 import { Input } from '@/components/ui/input';
 import { usePOSProfile } from '@/hooks/fetchers/usePOSProfile';
 
@@ -531,6 +531,31 @@ const trackActiveTransaction = async (authToken: string) => {
             setPayStatus("Completed");
             setCashmaticMessage(`✅ Payment Completed. Change returned: $${previousDispensed}`);
             setCashmaticProgress(100);
+
+            ////create invoice
+            // if(payStatus == "Completed"){
+
+              const invoice = {
+                id: `invoice-${Date.now()}`, // Generate a unique ID
+                timestamp: Date.now(), // Set creation timestamp
+                status: "Paid" as const, // Default status
+                customer: customer?.name || "Guest Customer",
+                items: cart,
+                total: totalAfterAllDiscounts,
+                discount: orderDiscountAmount,
+                paymentMethod: selectedMethod,
+              };
+        
+              if (customer) {
+                createInvoice(invoice);
+              } else {
+                console.error("Customer information is missing.");
+              }
+                
+              
+            // }
+            ////create invoice
+
           // }
         }
       } else {
@@ -625,7 +650,7 @@ const canProvideExactChange = (denominations: any[], change: number) => {
 
 
 
-
+const { createInvoice } = usePOSStore();
 
 // ✅ **Handle the Payment Process**
 const handlePayment = async () => {

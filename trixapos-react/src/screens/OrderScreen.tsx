@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePOSStore } from "@/hooks/Stores/usePOSStore";
 import { format } from "date-fns";
-import { Package, Clock, Search, Trash2 } from "lucide-react";
+import { Package, Clock, Search, Trash2, Printer } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/layout/TopBar";
 import { RejectedOrderCard } from "@/components/orders/RejectedOrderCard";
@@ -16,6 +16,9 @@ export const OrderScreen = () => {
   const {
     getDraftOrders,
     completedOrders,
+    getInvoices,
+    loadInvoice,
+    syncInvoices,
     rejectedOrders,
     loadHeldOrder,
     removeHeldOrder,
@@ -35,6 +38,26 @@ export const OrderScreen = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  //Invoice >>
+
+  const [fetchedInvoices, setFetchedInvoices] = useState<any[]>([]);
+
+  //create invoice example
+  // const createInvoice = usePOSStore((state) => state.createInvoice);
+
+  // const handleCreateInvoice = () => {
+  //   const newInvoice = {
+  //     customer: "John Doe",
+  //     items: [
+  //       { item_code: "001", item_name: "Product A", qty: 2, rate: 100, amount: 200 },
+  //     ],
+  //     total: 200,
+  //   };
+  //   createInvoice(newInvoice);
+  // };
+  //create invoice example
+
+
   // Fetch orders on mount
   useEffect(() => {
     const fetchHeldOrders = async () => {
@@ -47,13 +70,28 @@ export const OrderScreen = () => {
         setLoadingOrders(false);
       }
     };
+
+    const fetchInvoices = async () => {
+      try {
+        const invoices = await getInvoices();
+        setFetchedInvoices(invoices);
+        console.log("fetcheeddd: ", invoices);
+      } catch (error) {
+        console.error("Failed to fetch invoices", error);
+      } finally {
+        setLoadingOrders(false);
+      }
+    };
+
     fetchHeldOrders();
-  }, [getDraftOrders]);
+    fetchInvoices();
+  }, [getDraftOrders, getInvoices]);
 
   // Listen for the "online" event to sync offline orders
   useEffect(() => {
     const handleOnline = () => {
       syncOfflineOrders();
+      // syncInvoices();
     };
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
@@ -140,7 +178,7 @@ export const OrderScreen = () => {
                 value="completed"
                 className="flex-1 h-full data-[state=active]:bg-gray-50 rounded-none border-b-2 data-[state=active]:border-blue-600"
               >
-                Completed ({completedOrders.length})
+                Completed ({fetchedInvoices.length})
               </TabsTrigger>
               <TabsTrigger
                 value="rejected"
@@ -242,33 +280,74 @@ export const OrderScreen = () => {
               )}
             </>
           )}
-          {activeTab === "rejected" && (
-            <>
-              {rejectedOrders.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-lg border">
-                  <Package className="w-12 h-12 mx-auto text-gray-400 mb-2" />
-                  <p className="text-gray-500">No rejected orders found</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {rejectedOrders.map((order) => (
-                    <RejectedOrderCard
-                      key={order.id}
-                      order={order}
-                      onLoadOrder={handleLoadOrder}
-                      onRemoveOrder={(id) => {
-                        // For rejected orders, you can simply remove from the store
-                        removeHeldOrder(id);
-                        setHeldOrderList((prev) =>
-                          prev.filter((o) => o.id !== id)
-                        );
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-            </>
-          )}
+          {activeTab === "completed" && (
+          <>
+            {fetchedInvoices.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 bg-gray-100 rounded-lg border border-gray-300">
+                <Package className="w-16 h-16 text-gray-400 mb-4" />
+                <p className="text-lg text-gray-500">No completed orders found</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
+                {fetchedInvoices.map((invoice) => (
+                  <div key={invoice.id} className="relative bg-white shadow-md rounded-lg hover:shadow-lg transition duration-300 border border-gray-200">
+                    <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded">
+                      {invoice.customer
+                        ? typeof invoice.customer === "string"
+                          ? invoice.customer
+                          : invoice.customer.customer_name
+                        : "Guest Customer"}
+                    </div>
+                    <div className="p-4 flex flex-col justify-between h-full">
+                      <div className="flex justify-between mb-4">
+                        <div className="flex mt-4 items-center text-gray-600 text-sm">
+                          <Clock className="w-4 h-4 mr-1" />
+                          {format(new Date(invoice.timestamp), "MMM d, yyyy h:mm a")}
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg text-gray-800">${invoice.total.toFixed(2)}</p>
+                          <p className="text-xs text-gray-500">ID: {invoice.id}</p>
+                        </div>
+                      </div>
+                      <div className="flex-grow overflow-auto mb-4">
+                        {invoice.items.slice(0, 3).map((item) => (
+                          <div key={item.item_code} className="text-sm text-gray-700">
+                            {item.qty}x {item.item_name}
+                          </div>
+                        ))}
+                      </div>
+                      {invoice.note && (
+                        <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                          <strong>Note:</strong> {invoice.note}
+                        </div>
+                      )}
+                      <div className="flex justify-end gap-4 mt-4">
+                        <button
+                          className="text-red-600 hover:text-red-700 text-sm flex items-center"
+                          onClick={() => {
+                            // remove logic here
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Remove
+                        </button>
+                        <button
+                          className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 flex items-center"
+                          onClick={() => {
+                            // print logic here
+                          }}
+                        >
+                          <Printer className="w-4 h-4 mr-1" />
+                          Print Invoice
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
           {/* You can add similar sections for "completed" tabs if needed */}
         </div>
       </div>

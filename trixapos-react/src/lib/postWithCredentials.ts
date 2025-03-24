@@ -1,4 +1,3 @@
-// src/lib/postWithCredentials.ts
 
 export async function postWithCredentials(
   url: string,

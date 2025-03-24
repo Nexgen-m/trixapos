@@ -11,5 +11,7 @@ export const fetchFromFrappe = async (
   method: string,
   options: { args?: object } = {}
 ) => {
-  return callFn({ method, args: options.args });
+  const result = await callFn({ method, args: options.args });
+  return result.message || result;
 };
+

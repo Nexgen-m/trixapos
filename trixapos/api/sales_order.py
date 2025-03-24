@@ -84,3 +84,37 @@ def cancel_order(data):
     except Exception as e:
         frappe.log_error(title="cancel_order Error", message=str(e))
         return {"success": False, "error": str(e)}
+
+@frappe.whitelist()
+def get_draft_sales_orders():
+    """
+    Fetches all Sales Orders with docstatus = 0 (draft).
+    Returns key fields: name, creation, total, custom_note, customer, and full items list.
+    This is consumed by the POS frontend.
+    """
+    try:
+        orders = frappe.get_all(
+            "Sales Order",
+            filters={"docstatus": 0},
+            fields=["name", "creation", "total", "custom_note", "customer"]
+        )
+        
+
+        for order in orders:
+            doc = frappe.get_doc("Sales Order", order.name)
+            order["items"] = [
+                {
+                    "item_code": item.item_code,
+                    "item_name": item.item_name,
+                    "qty": item.qty,
+                    "rate": item.rate,
+                    "amount": item.amount,
+                    "discount_percentage": item.discount_percentage,
+                }
+                for item in doc.items
+            ]
+
+        return orders
+    except Exception as e:
+        frappe.log_error(title="get_draft_sales_orders Error", message=str(e))
+        return []

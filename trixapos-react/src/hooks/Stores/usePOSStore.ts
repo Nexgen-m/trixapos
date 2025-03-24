@@ -5,12 +5,18 @@ import {
   saveOrderOffline,
   getOfflineOrders,
   removeOfflineOrder,
+  getInvoicesOffline,
+  deleteInvoiceOffline,
+  updateInvoiceOffline,
+  saveInvoiceOffline,
 } from "@/lib/db";
 import { redirect } from "react-router-dom";
 // Import our custom Frappe API helper. This wrapper around the frappe-js-sdk's call method
 // is used to perform online API calls for draft sales orders.
 import { fetchFromFrappe } from "@/lib/frappeApi";
 import { createDraftOrder } from "@/lib/createDraftOrder";
+import { fetchWithCredentials } from "@/lib/fetchWithCredentials";
+import { createInvoice } from "@/lib/createInvoice";
 
 // Define a new type for orders
 interface Order {
@@ -29,6 +35,31 @@ interface ExtendedCartItem extends CartItem {
   discount?: number; // Percentage-based discount
 }
 
+// invoice  >>
+
+// types/invoice.ts
+export interface InvoiceItem {
+  item_code: string;
+  item_name: string;
+  qty: number;
+  rate: number;
+  discount?: number;
+  amount: number;
+}
+
+export interface Invoice {
+  id: string; // Unique identifier for the invoice
+  customer: string | Customer; // Customer associated with the invoice
+  items: ExtendedCartItem[]; // List of items in the invoice
+  total: number; // Total amount of the invoice
+  timestamp: number; // Timestamp of invoice creation
+  status: "Draft" | "Paid" | "Cancelled"; // Invoice status
+  paymentMethod?: string; // Payment method used
+  note?: string; // Additional notes for the invoice
+}
+
+// invoice <<
+
 interface POSStore {
   cart: ExtendedCartItem[];
   customer: Customer | null;
@@ -38,6 +69,8 @@ interface POSStore {
   isVerticalLayout: boolean; // Layout preference
   isCompactMode: boolean; // Compact view mode
   isFullScreenMode: boolean; // Full screen mode
+  invoices: Invoice[]; // List of invoices
+  currentInvoice: Invoice | null; // Currently selected invoice
 
   initializeHeldOrders: () => Promise<void>;
   // Order-related functions
@@ -48,6 +81,17 @@ interface POSStore {
   loadHeldOrder: (id: string) => void;
   removeHeldOrder: (id: string) => void;
   resendOrderEmail: (orderId: string, email: string) => Promise<void>;
+
+  // Invoice-related functions
+  createInvoice: (invoice: Invoice) => Promise<void>;
+  updateInvoice: (
+    id: string,
+    updatedInvoice: Partial<Invoice>
+  ) => Promise<void>;
+  deleteInvoice: (id: string) => Promise<void>;
+  getInvoices: () => Promise<Invoice[]>;
+  loadInvoice: (id: string) => void;
+  syncInvoices: () => Promise<void>; // Sync offline invoices when online
 
   // New function for syncing offline orders when back online
   syncOfflineOrders: () => Promise<void>;
@@ -92,6 +136,8 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   heldOrders: [],
   completedOrders: [],
   rejectedOrders: [],
+  invoices: [],
+  currentInvoice: null,
 
   // Initialize held orders from IndexedDB
   initializeHeldOrders: async () => {
@@ -223,40 +269,49 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     }
   },
 
-  // Get all draft orders merging online and offline orders.
   // For online orders, we call our ERPNext API endpoint to get Sales Orders in draft state.
   // We map each online order using its ERPNext-generated 'name' as the order ID,
   // and extract fields such as creation date (mapped to timestamp), total, custom_note, and customer.
   // Offline orders already have IDs in the format "offline-{timestamp}".
+
+  // Get all draft orders merging online and offline orders.
+  // For online orders, we call our ERPNext API endpoint using fetchWithCredentials to include credentials.
   getDraftOrders: async () => {
     let onlineOrders: Order[] = [];
     if (navigator.onLine) {
       try {
-        const response = await fetchFromFrappe(
-          "trixapos.api.sales_order.get_draft_sales_orders",
-          {
-            args: {},
-          }
+        const response = await fetchWithCredentials(
+          `http://38.242.204.206:8001/api/resource/Sales Order?fields=["name","customer_name","total","creation"]`
         );
-        if (Array.isArray(response)) {
-          onlineOrders = response.map((o: any) => ({
-            id: o.name, // ERPNext Sales Order 'name' is used as the order ID.
-            timestamp: new Date(o.creation).getTime(), // Use the creation date as the timestamp.
+
+        // Handle HTML error responses
+        if (
+          typeof response === "string" &&
+          response.startsWith("<!DOCTYPE html>")
+        ) {
+          throw new Error("Server returned HTML error page");
+        }
+
+        console.log("API response:", JSON.stringify(response));
+
+        if (Array.isArray(response.data)) {
+          onlineOrders = (response.data).map((o: any) => ({
+            id: o.name,
+            timestamp: new Date(o.creation).getTime(),
             total: o.total,
-            items: o.items || [], // Map item details if available.
-            note: o.custom_note,
-            customer: o.customer,
+            items: o.items || [],
+            // note: o.custom_note,
+            customer: o.customer_name,
           }));
-        } else {
-          toast.error("Failed to fetch online orders.");
         }
       } catch (error) {
-        toast.error("Error fetching online orders.");
-        console.error(error);
+        console.error("API Error:", error);
+        toast.error("Failed to fetch orders");
       }
     }
     const offlineOrders = await getOfflineOrders();
     const mergedOrders = [...offlineOrders, ...onlineOrders];
+    console.log("Merged draft orders:", mergedOrders);
     set({ heldOrders: mergedOrders });
     return mergedOrders;
   },
@@ -541,4 +596,183 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   },
 
   // completed orders when payment by cashmatic is done
+  // Create a new invoice
+  createInvoice: async (invoice) => {
+    // const newInvoice: Invoice = {
+    //   ...invoice,
+    //   id: `invoice-${Date.now()}`, // Generate a unique ID
+    //   timestamp: Date.now(), // Set creation timestamp
+    //   status: "Paid", // Default status
+    //   customer: customer?.name || "Guest Customer"
+    // };
+
+    if (navigator.onLine) {
+      try {
+        // Call the API to create the invoice online
+        const response = await createInvoice(invoice);
+        if (response.success) {
+          toast.success("Invoice created online!");
+          set((state) => ({ invoices: [...state.invoices, invoice] }));
+        } else {
+          throw new Error(response.error);
+        }
+      } catch (error) {
+        toast.error("Failed to create invoice online. Saving offline.");
+        console.error(error);
+      }
+    }
+
+    // Offline fallback: Save to IndexedDB
+    console.log("invoice from posstore: ", invoice);
+    set((state) => ({ invoices: [...state.invoices, invoice] }));
+    await saveInvoiceOffline(invoice);
+  },
+
+  // Update an existing invoice
+  updateInvoice: async (id, updatedInvoice) => {
+    const state = get();
+    const existingInvoice = state.invoices.find((inv) => inv.id === id);
+    if (!existingInvoice) {
+      toast.error("Invoice not found.");
+      return;
+    }
+
+    const updated = { ...existingInvoice, ...updatedInvoice };
+
+    if (navigator.onLine) {
+      try {
+        // Call the API to update the invoice online
+        const response = await fetchFromFrappe(
+          "trixapos.api.invoice.update_invoice",
+          {
+            args: { id, ...updatedInvoice },
+          }
+        );
+        if (response.success) {
+          toast.success("Invoice updated online!");
+          set((state) => ({
+            invoices: state.invoices.map((inv) =>
+              inv.id === id ? updated : inv
+            ),
+          }));
+        } else {
+          throw new Error(response.error);
+        }
+      } catch (error) {
+        toast.error("Failed to update invoice online. Updating offline.");
+        console.error(error);
+      }
+    }
+
+    // Offline fallback: Update in IndexedDB
+    await updateInvoiceOffline(updated);
+    set((state) => ({
+      invoices: state.invoices.map((inv) => (inv.id === id ? updated : inv)),
+    }));
+  },
+
+  // Delete an invoice
+  deleteInvoice: async (id) => {
+    if (navigator.onLine) {
+      try {
+        // Call the API to delete the invoice online
+        const response = await fetchFromFrappe(
+          "trixapos.api.invoice.delete_invoice",
+          {
+            args: { id },
+          }
+        );
+        if (response.success) {
+          toast.success("Invoice deleted online!");
+          set((state) => ({
+            invoices: state.invoices.filter((inv) => inv.id !== id),
+          }));
+        } else {
+          throw new Error(response.error);
+        }
+      } catch (error) {
+        toast.error("Failed to delete invoice online. Deleting offline.");
+        console.error(error);
+      }
+    }
+
+    // Offline fallback: Delete from IndexedDB
+    await deleteInvoiceOffline(id);
+    set((state) => ({
+      invoices: state.invoices.filter((inv) => inv.id !== id),
+    }));
+  },
+
+  // Get all invoices (merge online and offline)
+  getInvoices: async () => {
+    let onlineInvoices: Invoice[] = [];
+    // if (navigator.onLine) {
+    //   try {
+    //     const response = await fetchWithCredentials(
+    //       "trixapos.api.sales_invoice.get_all_sales_invoices"
+    //     );
+    //     if (Array.isArray(response)) {
+    //       onlineInvoices = response.map((inv: any) => ({
+    //         id: inv.name,
+    //         customer: inv.customer,
+    //         items: inv.items,
+    //         total: inv.total,
+    //         timestamp: new Date(inv.creation).getTime(),
+    //         status: inv.status,
+    //         paymentMethod: inv.payment_method,
+    //         note: inv.note,
+    //       }));
+
+    //       console.log("OnlineInvoices: ", onlineInvoices);
+    //     } else {
+    //       toast.error("Failed to fetch online invoices.");
+    //     }
+    //   } catch (error) {
+    //     toast.error("Error fetching online invoices.");
+    //     console.error(error);
+    //   }
+    // }
+
+    const offlineInvoices = await getInvoicesOffline();
+    console.log("offline invoices: ", offlineInvoices);
+    // const mergedInvoices = [...offlineInvoices, ...onlineInvoices];
+    set({ invoices: offlineInvoices });
+    return offlineInvoices;
+  },
+
+  // Load a specific invoice
+  loadInvoice: (id) => {
+    const invoice = get().invoices.find((inv) => inv.id === id);
+    if (invoice) {
+      set({ currentInvoice: invoice });
+      toast.success(`Loaded invoice ${id}`);
+    } else {
+      toast.error("Invoice not found.");
+    }
+  },
+
+  // Sync offline invoices when online
+  syncInvoices: async () => {
+    if (!navigator.onLine) return;
+    const offlineInvoices = await getInvoicesOffline();
+    for (const invoice of offlineInvoices) {
+      try {
+        const response = await fetchFromFrappe(
+          "trixapos.api.sales_invoice.create_sales_invoice",
+          {
+            args: invoice,
+          }
+        );
+        if (response.success) {
+          await deleteInvoiceOffline(invoice.id);
+          toast.success(`Synced offline invoice ${invoice.id}`);
+        } else {
+          throw new Error(response.error);
+        }
+      } catch (error) {
+        console.error("Failed to sync offline invoice", invoice.id, error);
+      }
+    }
+    await get().getInvoices();
+  },
 }));

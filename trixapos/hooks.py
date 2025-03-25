@@ -7,8 +7,7 @@ app_license = "mit"
 
 fixtures = [
     {"doctype": "Custom Field", "filters": [["dt", "=", "POS Profile"]]},
-    {"doctype": "Property Setter", "filters": [["doc_type", "=", "POS Profile"]]},
-    "Client Script",
+    {"doctype": "Property Setter", "filters": [["doc_type", "=", "POS Profile"]]}
 ]
 
 

@@ -796,7 +796,7 @@ export function OptionsMenu() {
           </DialogHeader>
 
 {/* Screen Layout Selection */}
-<div className="space-y-4 p-4 border rounded-lg bg-gray-50">
+          <div className="space-y-4 p-4 border rounded-lg bg-gray-50">
             <h3 className="text-sm font-semibold text-gray-700">Screen Layout</h3>
             <div className="flex space-x-4">
               <button

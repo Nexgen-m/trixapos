@@ -119,3 +119,29 @@ def get_draft_sales_orders():
     except Exception as e:
         frappe.log_error(title="get_draft_sales_orders Error", message=str(e))
         return []
+
+@frappe.whitelist()
+def delete_draft_order(data):
+    """
+    Permanently deletes a draft Sales Order (docstatus=0).
+    Expects JSON payload with:
+      - order_id: (string) Sales Order name
+    """
+    try:
+        payload = json.loads(data)
+        order_id = payload.get("order_id")
+        if not order_id:
+            return {"success": False, "error": "Order ID is required"}
+
+        doc = frappe.get_doc("Sales Order", order_id)
+        
+        if doc.docstatus != 0:
+            return {"success": False, "error": "Only draft orders can be deleted"}
+
+        frappe.delete_doc("Sales Order", order_id)
+        frappe.db.commit()
+        return {"success": True}
+        
+    except Exception as e:
+        frappe.log_error(title="delete_draft_order Error", message=str(e))
+        return {"success": False, "error": str(e)}

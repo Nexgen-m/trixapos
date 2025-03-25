@@ -50,6 +50,8 @@ export const updateInvoiceOffline = async (invoice: any) => {
 
 export const deleteInvoiceOffline = async (id: string): Promise<void> => {
   // Delete from IndexedDB
+  const db = await dbPromise;
+  await db.delete("offline_invoices", id);
 };
 
 export async function getInvoicesOffline() {

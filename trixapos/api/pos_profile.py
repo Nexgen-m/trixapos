@@ -1,7 +1,7 @@
 import frappe
 from frappe import _
 
-# Constants for field names
+# # Constants for field names
 CUSTOM_ENABLE_COMPACT_MODE_OPTION = "custom_enable_compact_mode_option"
 CUSTOM_DISPLAY_MODE = "custom_display_mode"
 

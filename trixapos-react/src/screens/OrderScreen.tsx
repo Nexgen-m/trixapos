@@ -91,7 +91,7 @@ export const OrderScreen = () => {
   useEffect(() => {
     const handleOnline = () => {
       syncOfflineOrders();
-      // syncInvoices();
+      syncInvoices();
     };
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
@@ -316,25 +316,28 @@ export const OrderScreen = () => {
                           </div>
                         ))}
                       </div>
-                      {invoice.note && (
+                      {invoice.status && (
                         <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
-                          <strong>Note:</strong> {invoice.note}
+                          <strong>Status:</strong> {invoice.status}
                         </div>
                       )}
                       <div className="flex justify-end gap-4 mt-4">
-                        <button
+                        {/* <button
                           className="text-red-600 hover:text-red-700 text-sm flex items-center"
                           onClick={() => {
-                            // remove logic here
+                            deleteInvoice(order.id);
+                            setHeldOrderList((prev) =>
+                              prev.filter((o) => o.id !== order.id)
+                            );
                           }}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
                           Remove
-                        </button>
+                        </button> */}
                         <button
-                          className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 flex items-center"
+                          className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-white hover:text-blue-500 transition-all hover:border-blue-500 border flex items-center"
                           onClick={() => {
-                            // print logic here
+                          // print logic here
                           }}
                         >
                           <Printer className="w-4 h-4 mr-1" />

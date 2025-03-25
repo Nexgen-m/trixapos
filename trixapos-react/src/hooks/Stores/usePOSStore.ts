@@ -116,6 +116,7 @@ interface POSStore {
   clearCart: () => void;
   initializeCart: () => void;
   calculateTotal: () => number;
+  syncCompactModeFromProfile: (isCompact: boolean) => void;
 
   // New properties for OrdersScreen functionality
   heldOrders: Order[];
@@ -139,6 +140,11 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   rejectedOrders: [],
   invoices: [],
   currentInvoice: null,
+
+  syncCompactModeFromProfile: (isCompact) => {
+    localStorage.setItem("compactMode", JSON.stringify(isCompact));
+    set({ isCompactMode: isCompact });
+  },
 
   // Initialize held orders from IndexedDB
   initializeHeldOrders: async () => {
@@ -283,7 +289,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       try {
         // (1) Basic fields from resource list
         const mainResponse = await fetchWithCredentials(
-          `http://38.242.204.206:8001/api/resource/Sales Order?fields=["name","customer_name","total","creation"]&filters=[["docstatus","=","0"],["status","=","Cancelled"]]`
+          `http://38.242.204.206:8001/api/resource/Sales Order?fields=["name","customer_name","total","creation"]&filters=[["docstatus","=","0"]]`
         );
 
         if (!Array.isArray(mainResponse.data)) {
@@ -389,36 +395,29 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   removeHeldOrder: async (id: string) => {
     try {
       if (id.startsWith("offline-")) {
-        // offline only
+        // Offline order
         await removeOfflineOrder(id);
         set((state) => ({
           heldOrders: state.heldOrders.filter((o) => o.id !== id),
         }));
         toast.success(`Removed held order ${id}`);
       } else if (navigator.onLine) {
-        // online -> call your whitelisted method using POST
+        // Online order - call new delete endpoint
         const response = await postWithCredentials(
-          "trixapos.api.sales_order.cancel_order",
-          {
-            data: JSON.stringify({ order_id: id }),
-          }
+          "trixapos.api.sales_order.delete_draft_order",
+          { data: JSON.stringify({ order_id: id }) }
         );
+  
         if (!response.success) throw new Error(response.error);
-
-        // On success, remove from heldOrders & add to rejected
-        set((state) => {
-          const removedOrder = state.heldOrders.find((o) => o.id === id);
-          return {
-            heldOrders: state.heldOrders.filter((o) => o.id !== id),
-            rejectedOrders: removedOrder
-              ? [...state.rejectedOrders, removedOrder]
-              : state.rejectedOrders,
-          };
-        });
-        toast.success(`Canceled order ${id}`);
+        
+        // Remove from state on success
+        set((state) => ({
+          heldOrders: state.heldOrders.filter((o) => o.id !== id),
+        }));
+        toast.success(`Deleted order ${id}`);
       }
     } catch (error) {
-      toast.error("Failed to cancel order.");
+      toast.error("Failed to delete order.");
       console.error(error);
     }
   },
@@ -627,14 +626,16 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     //   status: "Paid", // Default status
     //   customer: customer?.name || "Guest Customer"
     // };
-
+    let success = false;
     if (navigator.onLine) {
       try {
         // Call the API to create the invoice online
         const response = await createInvoice(invoice);
         if (response.success) {
           toast.success("Invoice created online!");
+          success = true;
           set((state) => ({ invoices: [...state.invoices, invoice] }));
+          return;
         } else {
           throw new Error(response.error);
         }
@@ -646,8 +647,8 @@ export const usePOSStore = create<POSStore>((set, get) => ({
 
     // Offline fallback: Save to IndexedDB
     console.log("invoice from posstore: ", invoice);
+    !success && (await saveInvoiceOffline(invoice));
     set((state) => ({ invoices: [...state.invoices, invoice] }));
-    await saveInvoiceOffline(invoice);
   },
 
   // Update an existing invoice
@@ -726,46 +727,46 @@ export const usePOSStore = create<POSStore>((set, get) => ({
   },
 
   // Get all invoices (merge online and offline)
-  
+
   getInvoices: async () => {
     let onlineInvoices: Invoice[] = [];
     if (navigator.onLine) {
-        try {
-            const response = await fetch(
-                `http://38.242.204.206:8001/api/resource/Sales Invoice?fields=["name","customer_name","grand_total","posting_date","status","items"]&expand=items`,
-                {
-                    method: "GET",
-                    credentials: "include",
-                    headers: {
-                        Accept: "application/json",
-                    },
-                }
-            );
-            const responseData = await response.json();
-            if (Array.isArray(responseData.data)) {
-                onlineInvoices = responseData.data.map((inv: any) => ({
-                    id: inv.name,
-                    customer: inv.customer_name,
-                    items: Array.isArray(inv.items)
-                        ? inv.items.map((item: any) => ({
-                            item_name: item.item_name,
-                        }))
-                        : [], // Fallback to empty array
-                    total: inv.grand_total || 0, // Default total if undefined
-                    timestamp: inv.posting_date
-                        ? new Date(inv.posting_date).getTime()
-                        : null, // Handle missing posting_date
-                    status: inv.status || "Unknown", // Default status if undefined
-                }));
+      try {
+        const response = await fetch(
+          `http://38.242.204.206:8001/api/resource/Sales Invoice?fields=["name","customer_name","grand_total","posting_date","posting_time","status","items"]&expand=items`,
+          {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              Accept: "application/json",
+            },
+          }
+        );
+        const responseData = await response.json();
+        if (Array.isArray(responseData.data)) {
+          onlineInvoices = responseData.data.map((inv: any) => ({
+            id: inv.name,
+            customer: inv.customer_name,
+            items: Array.isArray(inv.items)
+              ? inv.items.map((item: any) => ({
+                  item_name: item.item_name,
+                }))
+              : [], // Fallback to empty array
+            total: inv.grand_total || 0, // Default total if undefined
+            timestamp: inv.posting_date && inv.posting_time && !isNaN(new Date(`${inv.posting_date}T${inv.posting_time}`).getTime())
+              ? new Date(`${inv.posting_date}T${inv.posting_time}`).getTime()
+              : new Date().getTime(), // Handle missing or invalid posting_date or posting_time
+            status: inv.status || "Unknown", // Default status if undefined
+          }));
 
-                console.log("OnlineInvoices: ", onlineInvoices);
-            } else {
-                toast.error("Failed to fetch online invoices.");
-            }
-        } catch (error) {
-            toast.error("Error fetching online invoices.");
-            console.error(error);
+          console.log("OnlineInvoices: ", onlineInvoices);
+        } else {
+          toast.error("Failed to fetch online invoices.");
         }
+      } catch (error) {
+        toast.error("Error fetching online invoices.");
+        console.error(error);
+      }
     }
 
     const offlineInvoices = await getInvoicesOffline();
@@ -773,7 +774,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     const mergedInvoices = [...offlineInvoices, ...onlineInvoices];
     set({ invoices: mergedInvoices });
     return mergedInvoices;
-},
+  },
   // Load a specific invoice
   loadInvoice: (id) => {
     const invoice = get().invoices.find((inv) => inv.id === id);

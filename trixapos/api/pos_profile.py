@@ -40,6 +40,7 @@ def get_pos_profile():
                                           "custom_show_subcategories",  # Add this field
                                           "custom_enable_use_add_new_customer",
                                           "custom_enable_fullscreen_mode",
+                                          "custom_enable_user_choose_full_screen_mode",
                                       ])
 
         if not pos_profiles:
@@ -91,6 +92,7 @@ def get_pos_profile():
                 "custom_show_subcategories": profile_data.get("custom_show_subcategories", False),  # Add this field
                 "custom_enable_use_add_new_customer": profile_data.get("custom_enable_use_add_new_customer", False),  # Add this field
                 "custom_enable_fullscreen_mode": profile_data.get("custom_enable_fullscreen_mode", False),  # Add this field
+                "custom_enable_user_choose_full_screen_mode": profile_data.get("custom_enable_user_choose_full_screen_mode", False),  # Add this field
                 "payments": processed_payments,
                 "default_payment_method": default_payment,
             },

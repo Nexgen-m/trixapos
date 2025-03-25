@@ -20,6 +20,7 @@ fixtures = [
 # Whitelisted methods for API access
 whitelisted_methods = [
     "trixapos.api.pos_profile.get_pos_profile",
+    "trixapos.api.items_api.get_items",
     "trixapos.api.auth.get_logged_user",
     "trixapos.api.pos_profile.get_pos_profile",
     "trixapos.api.customer_api.create_customer",  # Add this line

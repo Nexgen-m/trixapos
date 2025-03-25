@@ -27,6 +27,8 @@ export function usePOSProfile() {
   const showSubcategories = Boolean(posProfile?.custom_show_subcategories);  // Add this field
   const AddNewCustomer = Boolean(posProfile?.custom_enable_use_add_new_customer);  // Add this field
   const FullScreenMode = Boolean(posProfile?.custom_enable_fullscreen_mode);  // Add this field
+  const UserAccessFullScreenMode = Boolean(posProfile?.custom_enable_user_choose_full_screen_mode);  // Add this field
+
   // Function to update the custom_display_mode
   const updateCustomDisplayMode = async (displayMode: string) => {
     if (!posProfile?.name) {
@@ -65,6 +67,7 @@ export function usePOSProfile() {
     showSubcategories,  // Return the showSubcategories flag
     AddNewCustomer,
     FullScreenMode,
+    UserAccessFullScreenMode,
     payments: posProfile?.payments || [],
     defaultPaymentMethod: posProfile?.default_payment_method || "cash", // ✅ Get the default method
     isLoading,

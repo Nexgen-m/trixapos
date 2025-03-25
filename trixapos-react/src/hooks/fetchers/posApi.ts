@@ -1,5 +1,6 @@
 import { call } from "../../lib/frappe"; // Using frappe-js-sdk
 import { Item } from "../../types/pos";
+import { fetchWithCredentials } from "@/lib/fetchWithCredentials";
 
 /**
  * ✅ Fetch customers from Frappe API using frappe-js-sdk
@@ -38,51 +39,39 @@ export async function fetchProducts(
   page: number = 1,
   category: string = "",
   searchTerm: string = "",
-  customer: string = "", // ✅ Include customer
+  customer: string = "",
   pageSize: number = 50
-): Promise<{ 
-  items: Item[]; 
+): Promise<{
+  items: Item[];
   nextPage: number | null;
   price_list_used: string;
   using_standard_price: boolean;
 }> {
   try {
-    const response = await call.get("trixapos.api.item_api.get_items", {
+    const response = await fetchWithCredentials("trixapos.api.item_api.get_items", {
       page,
       page_size: pageSize,
       category,
       search_term: searchTerm,
-      customer, // ✅ Pass customer to fetch correct price list
+      customer,
     });
 
-    console.log("Products API Response:", response); // 🔍 Debugging API response
+    const result = response?.items ? response : response?.message?.items ? response.message : null;
 
-    // ✅ Handle different response structures with proper default values
-    if (response?.items && Array.isArray(response.items)) {
-      return {
-        items: response.items,
-        nextPage: response.next_page ?? null,
-        price_list_used: response.price_list_used || "Standard Selling",
-        using_standard_price: response.using_standard_price === true,
-      };
+    if (!result || !Array.isArray(result.items)) {
+      throw new Error("Invalid API response format for products.");
     }
 
-    if (response?.message?.items && Array.isArray(response.message.items)) {
-      return {
-        items: response.message.items,
-        nextPage: response.message.next_page ?? null,
-        price_list_used: response.message.price_list_used || "Standard Selling",
-        using_standard_price: response.message.using_standard_price === true,
-      };
-    }
-
-    // ❌ Unexpected response format
-    console.error("Invalid API Response Format for Products:", response);
-    throw new Error("Invalid API response format for products.");
+    return {
+      items: result.items,
+      nextPage: result.next_page ?? null,
+      price_list_used: result.price_list_used || "Standard Selling",
+      using_standard_price: result.using_standard_price === true,
+    };
   } catch (error: any) {
-    console.error("Error fetching products:", error?.message || "Unknown Error");
-    return { 
-      items: [], 
+    console.error("Error fetching products:", error?.message || "Unknown error");
+    return {
+      items: [],
       nextPage: null,
       price_list_used: "Standard Selling",
       using_standard_price: true,

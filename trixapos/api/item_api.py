@@ -1,7 +1,7 @@
 import frappe
 from frappe.utils import flt
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist()
 def get_items(page=1, page_size=50, search_term=None, category=None, customer=None):
     """Fetch active items with customer-specific price list and stock, with search & pagination"""
     try:

@@ -9,7 +9,7 @@ import { Package, Clock, Search, Trash2, Printer } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/layout/TopBar";
 import { RejectedOrderCard } from "@/components/orders/RejectedOrderCard";
-
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 export const OrderScreen = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { username } = useAuth();
@@ -38,6 +38,10 @@ export const OrderScreen = () => {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Confirm removal dialog
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [orderToRemove, setOrderToRemove] = useState<any>(null);
+
   //Invoice >>
 
   const [fetchedInvoices, setFetchedInvoices] = useState<any[]>([]);
@@ -56,7 +60,6 @@ export const OrderScreen = () => {
   //   createInvoice(newInvoice);
   // };
   //create invoice example
-
 
   // Fetch orders on mount
   useEffect(() => {
@@ -257,10 +260,8 @@ export const OrderScreen = () => {
                             size="sm"
                             className="text-red-600 hover:text-red-700 mr-3 border-red-400"
                             onClick={() => {
-                              removeHeldOrder(order.id);
-                              setHeldOrderList((prev) =>
-                                prev.filter((o) => o.id !== order.id)
-                              );
+                              setOrderToRemove(order); // Store selected order
+                              setConfirmOpen(true); // Open confirmation
                             }}
                           >
                             <Trash2 className="w-4 h-4 mr-1" />
@@ -281,48 +282,63 @@ export const OrderScreen = () => {
             </>
           )}
           {activeTab === "completed" && (
-          <>
-            {fetchedInvoices.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 bg-gray-100 rounded-lg border border-gray-300">
-                <Package className="w-16 h-16 text-gray-400 mb-4" />
-                <p className="text-lg text-gray-500">No completed orders found</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
-                {fetchedInvoices.map((invoice) => (
-                  <div key={invoice.id} className="relative bg-white shadow-md rounded-lg hover:shadow-lg transition duration-300 border border-gray-200">
-                    <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded">
-                      {invoice.customer
-                        ? typeof invoice.customer === "string"
-                          ? invoice.customer
-                          : invoice.customer.customer_name
-                        : "Guest Customer"}
-                    </div>
-                    <div className="p-4 flex flex-col justify-between h-full">
-                      <div className="flex justify-between mb-4">
-                        <div className="flex mt-4 items-center text-gray-600 text-sm">
-                          <Clock className="w-4 h-4 mr-1" />
-                          {format(new Date(invoice.timestamp), "MMM d, yyyy h:mm a")}
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold text-lg text-gray-800">${invoice.total.toFixed(2)}</p>
-                          <p className="text-xs text-gray-500">ID: {invoice.id}</p>
-                        </div>
+            <>
+              {fetchedInvoices.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 bg-gray-100 rounded-lg border border-gray-300">
+                  <Package className="w-16 h-16 text-gray-400 mb-4" />
+                  <p className="text-lg text-gray-500">
+                    No completed orders found
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 p-2">
+                  {fetchedInvoices.map((invoice) => (
+                    <div
+                      key={invoice.id}
+                      className="relative bg-white shadow-md rounded-lg hover:shadow-lg transition duration-300 border border-gray-200"
+                    >
+                      <div className="absolute top-2 left-2 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded">
+                        {invoice.customer
+                          ? typeof invoice.customer === "string"
+                            ? invoice.customer
+                            : invoice.customer.customer_name
+                          : "Guest Customer"}
                       </div>
-                      <div className="flex-grow overflow-auto mb-4">
-                        {invoice.items.slice(0, 3).map((item) => (
-                          <div key={item.item_code} className="text-sm text-gray-700">
-                            {item.qty}x {item.item_name}
+                      <div className="p-4 flex flex-col justify-between h-full">
+                        <div className="flex justify-between mb-4">
+                          <div className="flex mt-4 items-center text-gray-600 text-sm">
+                            <Clock className="w-4 h-4 mr-1" />
+                            {format(
+                              new Date(invoice.timestamp),
+                              "MMM d, yyyy h:mm a"
+                            )}
                           </div>
-                        ))}
-                      </div>
-                      {invoice.status && (
-                        <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
-                          <strong>Status:</strong> {invoice.status}
+                          <div className="text-right">
+                            <p className="font-bold text-lg text-gray-800">
+                              ${invoice.total.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ID: {invoice.id}
+                            </p>
+                          </div>
                         </div>
-                      )}
-                      <div className="flex justify-end gap-4 mt-4">
-                        {/* <button
+                        <div className="flex-grow overflow-auto mb-4">
+                          {invoice.items.slice(0, 3).map((item) => (
+                            <div
+                              key={item.item_code}
+                              className="text-sm text-gray-700"
+                            >
+                              {item.qty}x {item.item_name}
+                            </div>
+                          ))}
+                        </div>
+                        {invoice.status && (
+                          <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                            <strong>Status:</strong> {invoice.status}
+                          </div>
+                        )}
+                        <div className="flex justify-end gap-4 mt-4">
+                          {/* <button
                           className="text-red-600 hover:text-red-700 text-sm flex items-center"
                           onClick={() => {
                             deleteInvoice(order.id);
@@ -334,23 +350,42 @@ export const OrderScreen = () => {
                           <Trash2 className="w-4 h-4 mr-1" />
                           Remove
                         </button> */}
-                        <button
-                          className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-white hover:text-blue-500 transition-all hover:border-blue-500 border flex items-center"
-                          onClick={() => {
-                          // print logic here
-                          }}
-                        >
-                          <Printer className="w-4 h-4 mr-1" />
-                          Print Invoice
-                        </button>
+                          <button
+                            className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-white hover:text-blue-500 transition-all hover:border-blue-500 border flex items-center"
+                            onClick={() => {
+                              // print logic here
+                            }}
+                          >
+                            <Printer className="w-4 h-4 mr-1" />
+                            Print Invoice
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+          <ConfirmDialog
+            isOpen={confirmOpen}
+            message="Are you sure you want to permanently delete this draft order?"
+            onCancel={() => {
+              setConfirmOpen(false);
+              setOrderToRemove(null);
+            }}
+            onConfirm={() => {
+              if (orderToRemove) {
+                removeHeldOrder(orderToRemove.id);
+                setHeldOrderList((prev) =>
+                  prev.filter((o) => o.id !== orderToRemove.id)
+                );
+              }
+              setConfirmOpen(false);
+              setOrderToRemove(null);
+            }}
+          />
+
           {/* You can add similar sections for "completed" tabs if needed */}
         </div>
       </div>

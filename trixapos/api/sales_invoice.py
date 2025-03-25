@@ -75,7 +75,8 @@ def create_sales_invoice(data):
             "base_net_total": invoice_data.get("total"),
             "base_grand_total": invoice_data.get("total"),
             "grand_total": invoice_data.get("total"),
-            "status": "Paid"  # Explicitly set status to "Paid"
+            "status": "Paid",  # Explicitly set status to "Paid"
+            "is_pos": True
         })
 
         # Insert the document into the database.

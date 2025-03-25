@@ -6,14 +6,12 @@ app_email = "devteam@nxgensolutions.com"
 app_license = "mit"
 
 fixtures = [
-    {
-        "doctype": "Custom Field",
-    },
-     {
-        "doctype": "Client Script",
-        
-    }
+    {"doctype": "Custom Field", "filters": [["dt", "=", "POS Profile"]]},
+    {"doctype": "Property Setter", "filters": [["doc_type", "=", "POS Profile"]]},
+    "Client Script",
 ]
+
+
 
 # hooks.py
 

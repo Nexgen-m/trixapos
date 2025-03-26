@@ -84,7 +84,7 @@ interface POSStore {
   resendOrderEmail: (orderId: string, email: string) => Promise<void>;
 
   // Invoice-related functions
-  createInvoice: (invoice: Invoice) => Promise<void>;
+  createInvoice: (invoice: any) => Promise<void>;
   updateInvoice: (
     id: string,
     updatedInvoice: Partial<Invoice>
@@ -407,9 +407,9 @@ export const usePOSStore = create<POSStore>((set, get) => ({
           "trixapos.api.sales_order.delete_draft_order",
           { data: JSON.stringify({ order_id: id }) }
         );
-  
+
         if (!response.success) throw new Error(response.error);
-        
+
         // Remove from state on success
         set((state) => ({
           heldOrders: state.heldOrders.filter((o) => o.id !== id),
@@ -632,6 +632,14 @@ export const usePOSStore = create<POSStore>((set, get) => ({
         // Call the API to create the invoice online
         const response = await createInvoice(invoice);
         if (response.success) {
+          // Clear the cart and total once saved online.
+          set({ cart: [], total: 0 });
+          // Refresh the list of invoices.
+          // await get().getInvoices();
+          // Redirect to the invoice page
+          // redirect(`/trixapos/OrderScreen/`);
+          
+          // Show success message
           toast.success("Invoice created online!");
           success = true;
           set((state) => ({ invoices: [...state.invoices, invoice] }));
@@ -743,26 +751,49 @@ export const usePOSStore = create<POSStore>((set, get) => ({
           }
         );
         const responseData = await response.json();
-        if (Array.isArray(responseData.data)) {
-          onlineInvoices = responseData.data.map((inv: any) => ({
-            id: inv.name,
-            customer: inv.customer_name,
-            items: Array.isArray(inv.items)
-              ? inv.items.map((item: any) => ({
-                  item_name: item.item_name,
-                }))
-              : [], // Fallback to empty array
-            total: inv.grand_total || 0, // Default total if undefined
-            timestamp: inv.posting_date && inv.posting_time && !isNaN(new Date(`${inv.posting_date}T${inv.posting_time}`).getTime())
-              ? new Date(`${inv.posting_date}T${inv.posting_time}`).getTime()
-              : new Date().getTime(), // Handle missing or invalid posting_date or posting_time
-            status: inv.status || "Unknown", // Default status if undefined
-          }));
+        ////
+        const fetchedOrders = await Promise.all(
+          responseData.data.map(async (inv: any) => {
+            let items: any[] = [];
+            try {
+              // fetch the items for this specific Sales Order
+              const itemResponse = await fetchWithCredentials(
+                `http://38.242.204.206:8001/api/resource/Sales Invoice/${inv.name}?fields=["items"]`
+              );
+              items = itemResponse.data?.items || [];
+            } catch (err) {
+              console.error("Failed to fetch items for", inv.name, err);
+            }
 
-          console.log("OnlineInvoices: ", onlineInvoices);
-        } else {
-          toast.error("Failed to fetch online invoices.");
-        }
+            return {
+              id: inv.name,
+              timestamp:
+                inv.posting_date &&
+                inv.posting_time &&
+                !isNaN(
+                  new Date(`${inv.posting_date}T${inv.posting_time}`).getTime()
+                )
+                  ? new Date(
+                      `${inv.posting_date}T${inv.posting_time}`
+                    ).getTime()
+                  : new Date().getTime(), // Handle missing or invalid posting_date or posting_time
+              status: inv.status || "Unknown", // Default status if undefined
+              total: inv.grand_total || 0, // Default total if undefined
+              customer: inv.customer_name,
+              items: items.map((child: any) => ({
+                item_code: child.item_code,
+                item_name: child.item_name,
+                // Make sure we provide the field your CartItem expects:
+                price_list_rate: child.rate || 0,
+                qty: child.qty || 1,
+                discount: child.discount_percentage || 0,
+              })),
+            };
+          })
+        );
+
+        onlineInvoices = fetchedOrders;
+        console.log("OnlineInvoices: ", onlineInvoices);
       } catch (error) {
         toast.error("Error fetching online invoices.");
         console.error(error);

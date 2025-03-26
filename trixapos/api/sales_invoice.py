@@ -75,15 +75,18 @@ def create_sales_invoice(data):
             "base_net_total": invoice_data.get("total"),
             "base_grand_total": invoice_data.get("total"),
             "grand_total": invoice_data.get("total"),
-            "status": "Paid",  # Explicitly set status to "Paid"
-            "is_pos": True
+            # "payment_method": invoice_data.get("paymentMethod", "Cash"),  # Default payment method
+            # "status": "Paid",  # Explicitly set status to "Paid"
+            # "is_pos": True
         })
 
         # Insert the document into the database.
         sales_invoice.insert(ignore_permissions=True)
         
         # Submit the Sales Invoice to change its state from Draft to Submitted.
-        # sales_invoice.submit()
+        sales_invoice.submit()
+        # Set the status to "Paid" after submission.
+        sales_invoice.db_set("status", "Paid")
         
         # Commit the transaction to the database.
         frappe.db.commit()

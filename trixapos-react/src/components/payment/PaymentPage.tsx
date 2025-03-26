@@ -24,7 +24,7 @@ import { CashmaticDialog } from "./CashmaticDialog";
 
 //////>>cashmatic///////
 import cashmatic from "@/assets/cashmatic-icon.png";
-import { createInvoice } from "@/lib/createInvoice";
+// import { createInvoice } from "@/lib/createInvoice";
 // import { useCashmaticData } from '@/hooks/fetchers/cashmaticAPI';
 
 // Define the CashmaticIcon component without JSX
@@ -52,7 +52,8 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
     orderDiscount: storeOrderDiscount,
     setOrderDiscount,
     customer, // Added customer from the store
-    isVerticalLayout, // Get isVerticalLayout from the store
+    isVerticalLayout, // Get isVerticalLayout from the store,
+    createInvoice
   } = usePOSStore();
 
   const { payments, defaultPaymentMethod } = usePOSProfile();
@@ -186,8 +187,9 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
     const invoice = {
       id: `invoice-${Date.now()}`, // Generate a unique ID
       timestamp: Date.now(), // Set creation timestamp
-      status: "Paid" as const, // Default status
+      // status: "Paid" as const, // Default status
       customer: customer?.name || "Guest Customer",
+      paymentMethod: selectedMethod,
       items: cart,
       total: cartTotal,
       // discount: orderDiscountAmount,
@@ -198,6 +200,7 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
     try {
       await createInvoice(invoice);
       console.log("invoice created: ", invoice);
+      onClose();
     } catch (error) {
       console.log(error);
     }

@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePOSStore } from "@/hooks/Stores/usePOSStore";
 import { format } from "date-fns";
-import { Package, Clock, Search, Trash2, Printer } from "lucide-react";
+import { Package, Clock, Search, Trash2, Printer, SkipBack, Coins } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/layout/TopBar";
 import { RejectedOrderCard } from "@/components/orders/RejectedOrderCard";
@@ -338,18 +338,18 @@ export const OrderScreen = () => {
                           </div>
                         )}
                         <div className="flex justify-end gap-4 mt-4">
-                          {/* <button
-                          className="text-red-600 hover:text-red-700 text-sm flex items-center"
-                          onClick={() => {
-                            deleteInvoice(order.id);
-                            setHeldOrderList((prev) =>
-                              prev.filter((o) => o.id !== order.id)
-                            );
-                          }}
+                          <button
+                          className="text-red-600 hover:text-red-700 text-sm flex items-center hover:bg-red-50 px-3 py-2 rounded transition-all border border-white hover:border-red-400"
+                          // onClick={() => {
+                          //   deleteInvoice(order.id);
+                          //   setHeldOrderList((prev) =>
+                          //     prev.filter((o) => o.id !== order.id)
+                          //   );
+                          // }}
                         >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          Remove
-                        </button> */}
+                          <Coins className="w-5 h-5 mr-1" />
+                          Return
+                        </button>
                           <button
                             className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-white hover:text-blue-500 transition-all hover:border-blue-500 border flex items-center"
                             onClick={() => {

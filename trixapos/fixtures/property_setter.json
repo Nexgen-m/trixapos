@@ -71,7 +71,7 @@
   "doctype_or_field": "DocType",
   "field_name": null,
   "is_system_generated": 0,
-  "modified": "2025-03-26 01:10:29.874539",
+  "modified": "2025-03-26 12:45:12.096801",
   "module": null,
   "name": "POS Profile-main-field_order",
   "property": "field_order",

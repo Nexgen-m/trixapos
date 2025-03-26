@@ -5,9 +5,53 @@ app_description = "Trixapos"
 app_email = "devteam@nxgensolutions.com"
 app_license = "mit"
 
+# fixtures = [
+#     {"doctype": "Custom Field", "filters": [["dt", "=", "POS Profile"]]},
+#     {"doctype": "Property Setter", "filters": [["doc_type", "=", "POS Profile"]]}
+# ]
+
 fixtures = [
-    {"doctype": "Custom Field", "filters": [["dt", "=", "POS Profile"]]},
-    {"doctype": "Property Setter", "filters": [["doc_type", "=", "POS Profile"]]}
+    {
+        "doctype": "Custom Field",
+        "filters": [
+            [
+                "name",
+                "in",
+                [
+                    "POS Profile-custom_trixapos_configuration",
+                    "POS Profile-custom_ui",
+                    "POS Profile-custom_show_subcategories",
+                    "POS Profile-custom_display_settings",
+                    "POS Profile-custom_enable_fullscreen_mode",
+                    "POS Profile-custom_enable_user_choose_full_screen_mode",
+                    "POS Profile-custom_enable_compact_mode_option",
+                    "POS Profile-custom_display_mode",
+                    "POS Profile-custom_enable_recent_orders",
+                    "POS Profile-custom_enable_form_view",
+                    "POS Profile-custom_enable_save_as_draft",
+                    "POS Profile-custom_enable_display_settings",
+                    "POS Profile-custom_enable_close_pos",
+                    "POS Profile-custom_enable_use_add_new_customer",
+                    "POS Profile-custom_cart_order_processing",
+                    "POS Profile-custom_payment_discount_settings",
+                    "POS Profile-custom_stock_pricing_rules",
+                    "POS Profile-custom_customer_order_management",
+                    "POS Profile-allow_user_to_edit_additional_discount",
+                    "POS Profile-custom_column_break_3gdzr"
+                ]
+            ]
+        ]
+    },
+    {
+        "doctype": "Property Setter",
+        "filters": [
+            [
+                "doc_type",
+                "=",
+                "POS Profile"
+            ]
+        ]
+    }
 ]
 
 

@@ -5,7 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePOSStore } from "@/hooks/Stores/usePOSStore";
 import { format } from "date-fns";
-import { Package, Clock, Search, Trash2, Printer, SkipBack, Coins } from "lucide-react";
+import {
+  Package,
+  Clock,
+  Search,
+  Trash2,
+  Printer,
+  SkipBack,
+  Coins,
+} from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { TopBar } from "@/components/layout/TopBar";
 import { RejectedOrderCard } from "@/components/orders/RejectedOrderCard";
@@ -25,6 +33,7 @@ export const OrderScreen = () => {
     resendOrderEmail,
     syncOfflineOrders,
     heldOrders,
+    printInvoice,
   } = usePOSStore();
 
   const { customer } = usePOSStore();
@@ -78,7 +87,7 @@ export const OrderScreen = () => {
       try {
         const invoices = await getInvoices();
         setFetchedInvoices(invoices);
-        console.log("fetcheeddd: ", invoices);
+        // console.log("fetcheeddd: ", invoices);
       } catch (error) {
         console.error("Failed to fetch invoices", error);
       } finally {
@@ -95,7 +104,9 @@ export const OrderScreen = () => {
     const handleOnline = () => {
       syncOfflineOrders();
       syncInvoices();
+      console.log("Syncing offline orders and invoices...");
     };
+    // handleOnline(); // Call immediately to sync on mount
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
   }, [syncOfflineOrders, syncInvoices]);
@@ -141,6 +152,11 @@ export const OrderScreen = () => {
   };
 
   const filteredHeldOrders = filterOrders(heldOrderList);
+
+  const handlePrint = async (id: string) => {
+    await printInvoice(id);
+  };
+
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -250,7 +266,7 @@ export const OrderScreen = () => {
                           ))}
                         </div>
                         {order.note && (
-                          <div className="mt-2 text-sm bg-gray-50 p-2 rounded">
+                          <div className="mt-2 text-sm bg-gray-50 p-2 rounded max-w-[580px] overflow-hidden whitespace-nowrap text-ellipsis">
                             Note: {order.note}
                           </div>
                         )}
@@ -339,22 +355,20 @@ export const OrderScreen = () => {
                         )}
                         <div className="flex justify-end gap-4 mt-4">
                           <button
-                          className="text-red-600 hover:text-red-700 text-sm flex items-center hover:bg-red-50 px-3 py-2 rounded transition-all border border-white hover:border-red-400"
-                          // onClick={() => {
-                          //   deleteInvoice(order.id);
-                          //   setHeldOrderList((prev) =>
-                          //     prev.filter((o) => o.id !== order.id)
-                          //   );
-                          // }}
-                        >
-                          <Coins className="w-5 h-5 mr-1" />
-                          Return
-                        </button>
+                            className="text-red-600 hover:text-red-700 text-sm flex items-center hover:bg-red-50 px-3 py-2 rounded transition-all border border-white hover:border-red-400"
+                            // onClick={() => {
+                            //   deleteInvoice(order.id);
+                            //   setHeldOrderList((prev) =>
+                            //     prev.filter((o) => o.id !== order.id)
+                            //   );
+                            // }}
+                          >
+                            <Coins className="w-5 h-5 mr-1" />
+                            Return
+                          </button>
                           <button
                             className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-white hover:text-blue-500 transition-all hover:border-blue-500 border flex items-center"
-                            onClick={() => {
-                              // print logic here
-                            }}
+                            onClick={() => handlePrint(invoice.id)}
                           >
                             <Printer className="w-4 h-4 mr-1" />
                             Print Invoice

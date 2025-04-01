@@ -1,39 +1,3 @@
-// import React, { useState, useEffect } from "react";
-// import { ItemList } from "../components/ItemList";
-// import { ItemSearch } from "../components/ItemSearch";
-// import { CustomerSelector } from "../components/CustomerSelector";
-// import { usePOSStore } from "@/hooks/Stores/usePOSStore";
-// import { VerticalPOSScreen } from "./VerticalPOSScreen"; // Import Vertical Screen
-
-// export function POSScreen() {
-//   const [searchTerm, setSearchTerm] = useState("");
-//   const { isVerticalLayout } = usePOSStore(); // Get layout setting
-
-//   // Dynamically switch between layouts
-//   if (isVerticalLayout) {
-//     return <VerticalPOSScreen />;
-//   }
-
-//   return (
-//     <div className="h-full flex flex-col">
-//       {/* Search Bar and Customer Selector */}
-//       <div className="flex gap-6 p-4 bg-white border-b border-gray-200">
-//         <div className="flex-1">
-//           <ItemSearch search={searchTerm} onSearch={setSearchTerm} onClear={() => setSearchTerm("")} />
-//         </div>
-//         <div className="w-80">
-//           <CustomerSelector />
-//         </div>
-//       </div>
-
-//       {/* Items Grid */}
-//       <div className="flex-1 overflow-hidden">
-//         <ItemList searchTerm={searchTerm}/>
-//       </div>
-//     </div>
-//   );
-// }
-
 import React, { useState, useEffect, useRef } from "react";
 import { ItemList } from "../components/ItemList";
 import { ItemSearch } from "../components/ItemSearch";
@@ -42,13 +6,20 @@ import { usePOSStore } from "@/hooks/Stores/usePOSStore";
 import { VerticalPOSScreen } from "./VerticalPOSScreen";
 import { usePOSProfile } from "@/hooks/fetchers/usePOSProfile";
 import screenfull from "screenfull";
-import { Modal, Button, Input,InputRef, message } from "antd";
+import { Modal, Button, Input, InputRef, message } from "antd";
 import { useAuth } from "@/lib/auth";
+import { useCashmatic } from "@/hooks/fetchers/useCashmatic";
 
 export function POSScreen() {
   const [searchTerm, setSearchTerm] = useState("");
-  const { isVerticalLayout, isFullScreenMode, setIsFullScreenMode } = usePOSStore();
+  const {
+    isVerticalLayout,
+    isFullScreenMode,
+    setIsFullScreenMode,
+  } = usePOSStore();
+
   const { FullScreenMode } = usePOSProfile();
+
   const [showFullscreenPrompt, setShowFullscreenPrompt] = useState(false);
   const [showExitAuth, setShowExitAuth] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
@@ -59,33 +30,77 @@ export function POSScreen() {
   const escPressedRef = useRef(false);
   const [verifiedExit, setVerifiedExit] = useState(false);
 
-  // Handle fullscreen initialization
+  // 1. Fullscreen prompt on load
   useEffect(() => {
     if (FullScreenMode && screenfull.isEnabled && !screenfull.isFullscreen) {
       setShowFullscreenPrompt(true);
     }
   }, [FullScreenMode]);
 
-  // Handle fullscreen changes and exit attempts
+  // 2. Block browser tab/window close
+  useEffect(() => {
+    const beforeUnloadHandler = (e: BeforeUnloadEvent) => {
+      if (!verifiedExit && screenfull.isFullscreen) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnloadHandler);
+    return () => window.removeEventListener("beforeunload", beforeUnloadHandler);
+  }, [verifiedExit]);
+  
+  useEffect(() => {
+    const shouldEnterFullscreen = localStorage.getItem("fullScreenMode") === "true";
+  
+    if (shouldEnterFullscreen && screenfull.isEnabled && !screenfull.isFullscreen) {
+      screenfull.request()
+        .then(() => setIsFullScreenMode(true))
+        .catch(err => console.error("Auto-fullscreen failed:", err));
+    }
+  }, []);
+  
+  useEffect(() => {
+    const storedFullscreen = localStorage.getItem("fullScreenMode");
+    console.log("Auto fullscreen?", storedFullscreen);
+  
+    if (storedFullscreen === "true" && screenfull.isEnabled && !screenfull.isFullscreen) {
+      screenfull.request().then(() => {
+        console.log("Auto fullscreen success");
+        setIsFullScreenMode(true);
+      }).catch((err) => {
+        console.error("Failed to auto-enter fullscreen:", err);
+      });
+    }
+  }, []);
+  
+
+
+  // 3. Handle ESC, F11, Ctrl+W, etc. + Fullscreen change protection
   useEffect(() => {
     if (!screenfull.isEnabled || !FullScreenMode) return;
 
     const handleFullscreenChange = () => {
       if (!screenfull.isFullscreen && !verifiedExit) {
-        // Immediately re-enter fullscreen if exited without permission
-        screenfull.request().catch(console.error);
-        if (!showExitAuth) {
-          setShowExitAuth(true);
-        }
+        screenfull.request().catch((err) => {
+          console.error("Failed to re-enter fullscreen:", err);
+          // if (!screenfull.isFullscreen) {
+          //   setShowFullscreenPrompt(true);
+          // }
+        });
+        if (!showExitAuth) setShowExitAuth(true);
       } else if (verifiedExit && !screenfull.isFullscreen) {
-        // Reset verification state if user exited properly
         setVerifiedExit(false);
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !verifiedExit) {
+      const forbiddenKeys = ['Escape', 'F11'];
+      const isCtrlW = (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'w';
+
+      if ((forbiddenKeys.includes(e.key) || isCtrlW) && !verifiedExit) {
         e.preventDefault();
+        e.stopPropagation();
+
         if (!escPressedRef.current) {
           escPressedRef.current = true;
           setShowExitAuth(true);
@@ -99,22 +114,23 @@ export function POSScreen() {
       }
     };
 
-    screenfull.on('change', handleFullscreenChange);
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    screenfull.on("change", handleFullscreenChange);
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("keyup", handleKeyUp);
 
     return () => {
-      screenfull.off('change', handleFullscreenChange);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      screenfull.off("change", handleFullscreenChange);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
     };
-  }, [FullScreenMode, showExitAuth, verifiedExit]);
+  }, [FullScreenMode, verifiedExit, showExitAuth]);
 
   const enterFullscreen = async () => {
     try {
       if (screenfull.isEnabled) {
         await screenfull.request();
         setIsFullScreenMode(true);
+        localStorage.setItem("isFullScreenMode", "true");
         setShowFullscreenPrompt(false);
       }
     } catch (err) {
@@ -133,13 +149,15 @@ export function POSScreen() {
         setVerifiedExit(true);
         await screenfull.exit();
         setIsFullScreenMode(false);
+        localStorage.setItem("isFullScreenMode", "false");
         setShowExitAuth(false);
         setPasswordInput("");
         message.success("Exited fullscreen mode");
       } else {
         message.error("Incorrect password");
         setPasswordInput("");
-        passwordInputRef.current?.input?.focus();      }
+        passwordInputRef.current?.input?.focus();
+      }
     } catch (error) {
       message.error("Error verifying password");
       console.error("Password verification error:", error);
@@ -152,18 +170,31 @@ export function POSScreen() {
     setPasswordInput("");
     setShowExitAuth(false);
     if (screenfull.isEnabled && !screenfull.isFullscreen) {
-      screenfull.request().catch(console.error);
+      screenfull.request().catch((err) => {
+        console.error("Failed to re-enter fullscreen:", err);
+        if (!screenfull.isFullscreen) {
+          setShowFullscreenPrompt(true);
+        }
+      });
     }
   };
 
-  // Focus management for modals
+  // Focus inputs when modals show
   useEffect(() => {
     if (showFullscreenPrompt && fullscreenButtonRef.current) {
       fullscreenButtonRef.current.focus();
     }
     if (showExitAuth && passwordInputRef.current) {
-      passwordInputRef.current?.input?.focus();    }
+      passwordInputRef.current?.input?.focus();
+    }
   }, [showFullscreenPrompt, showExitAuth]);
+
+
+  const { cashmaticActions } = useCashmatic();
+  useEffect(() => {
+    usePOSStore.getState().checkCanProvideCash(cashmaticActions);
+  }, []);
+
 
   if (isVerticalLayout) {
     return <VerticalPOSScreen />;
@@ -171,31 +202,33 @@ export function POSScreen() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Fullscreen Entry Modal */}
-      <Modal
-        title="Fullscreen Required"
-        open={showFullscreenPrompt}
-        onOk={enterFullscreen}
-        closable={false}
-        centered
-        maskClosable={false}
-        footer={[
-          <Button
-            key="enter-fullscreen"
-            type="primary"
-            size="large"
-            onClick={enterFullscreen}
-            ref={fullscreenButtonRef}
-            style={{ width: '100%', height: '50px' }}
-          >
-            ENTER FULLSCREEN MODE
-          </Button>
-        ]}
-      >
-        <div className="text-center py-4">
-          <p className="text-lg mb-4">POS system requires fullscreen mode to operate.</p>
-        </div>
-      </Modal>
+      {/* Fullscreen Entry Modal - Only show if not already in fullscreen */}
+      {!screenfull.isFullscreen && (
+        <Modal
+          title="Fullscreen Required"
+          open={showFullscreenPrompt}
+          onOk={enterFullscreen}
+          closable={false}
+          centered
+          maskClosable={false}
+          footer={[
+            <Button
+              key="enter-fullscreen"
+              type="primary"
+              size="large"
+              onClick={enterFullscreen}
+              ref={fullscreenButtonRef}
+              style={{ width: '100%', height: '50px' }}
+            >
+              ENTER FULLSCREEN MODE
+            </Button>
+          ]}
+        >
+          <div className="text-center py-4">
+            <p className="text-lg mb-4">POS system requires fullscreen mode to operate.</p>
+          </div>
+        </Modal>
+      )}
 
       {/* Exit Authentication Modal */}
       <Modal

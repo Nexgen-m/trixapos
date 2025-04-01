@@ -1,4 +1,4 @@
-import { X, Receipt, Check, CreditCard, XCircle } from "lucide-react";
+import { X, Receipt, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Calculator } from "../calculator/Calculator";
 import React, { useState, useEffect, useCallback } from "react";
@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Invoice, usePOSStore } from "@/hooks/Stores/usePOSStore";
+import { usePOSStore } from "@/hooks/Stores/usePOSStore";
 import { Input } from "@/components/ui/input";
 import { usePOSProfile } from "@/hooks/fetchers/usePOSProfile";
 
@@ -22,12 +22,8 @@ import { OrderSummary } from "./OrderSummary";
 import { useCashmatic } from "@/hooks/fetchers/useCashmatic";
 import { CashmaticDialog } from "./CashmaticDialog";
 
-//////>>cashmatic///////
 import cashmatic from "@/assets/cashmatic-icon.png";
-// import { createInvoice } from "@/lib/createInvoice";
-// import { useCashmaticData } from '@/hooks/fetchers/cashmaticAPI';
 
-// Define the CashmaticIcon component without JSX
 const CashmaticIcon = () =>
   React.createElement("img", {
     src: cashmatic,
@@ -42,31 +38,27 @@ interface PaymentPageProps {
 
 export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
   const { canEditAdditionalDiscount, maxDiscountAllowed } = usePOSProfile();
-  console.log(
-    `🛠️ PaymentPage Loaded - Can Edit Additional Discount: ${canEditAdditionalDiscount}`
-  );
-
   const {
     cart,
     total: cartTotal,
     orderDiscount: storeOrderDiscount,
     setOrderDiscount,
-    customer, // Added customer from the store
-    isVerticalLayout, // Get isVerticalLayout from the store,
-    createInvoice
+    customer,
+    isVerticalLayout,
+    createInvoice,
   } = usePOSStore();
 
   const { payments, defaultPaymentMethod } = usePOSProfile();
-  const [selectedMethod, setSelectedMethod] = useState<string>(
+  const { canProvideCash } = usePOSStore();
+
+  const filteredPayments = canProvideCash
+    ? payments
+    : payments.filter((method) => method.name !== "Cashmatic");
+  const [selectedMethod, setSelectedMethod] = useState(
     defaultPaymentMethod || "cash"
   );
 
-  useEffect(() => {
-    if (defaultPaymentMethod) {
-      setSelectedMethod(defaultPaymentMethod);
-    }
-  }, [defaultPaymentMethod]);
-
+  // Payment-related local states
   const [orderDiscountPercentage, setOrderDiscountPercentage] = useState(
     storeOrderDiscount || 0
   );
@@ -75,8 +67,12 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
   const [showSummary, setShowSummary] = useState(false);
   const [paymentComplete, setPaymentComplete] = useState(false);
 
-  // Ensure valid cart total
-  const validCartTotal = cartTotal || 0;
+  // On open, set default payment method (if any)
+  useEffect(() => {
+    if (defaultPaymentMethod) {
+      setSelectedMethod(defaultPaymentMethod);
+    }
+  }, [defaultPaymentMethod]);
 
   // Calculate item discount amount
   const itemDiscountAmount = cart.reduce(
@@ -85,138 +81,104 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
     0
   );
 
-  // Calculate subtotal after item discounts
+  // Subtotal after item discounts
   const subtotalAfterItemDiscounts =
     cart.reduce((sum, item) => sum + item.price_list_rate * item.qty, 0) -
     itemDiscountAmount;
 
-  // Calculate order discount amount
+  // Order discount
   const orderDiscountAmount =
     (subtotalAfterItemDiscounts * orderDiscountPercentage) / 100;
 
-  // Calculate final total
+  // Final total
   const totalAfterAllDiscounts =
     subtotalAfterItemDiscounts - orderDiscountAmount;
 
+  // NumberPad logic
   const handleNumberInput = useCallback((value: string) => {
-    setAmountPaid((prevAmount) => {
-      // Handle backspace
-      if (value === "backspace") {
-        return prevAmount.slice(0, -1);
-      }
-
-      // Handle clear
-      if (value === "clear") {
-        return "";
-      }
-
-      // Handle decimal point
+    setAmountPaid((prev) => {
+      if (value === "backspace") return prev.slice(0, -1);
+      if (value === "clear") return "";
       if (value === ".") {
-        // Prevent multiple decimal points
-        if (prevAmount.includes(".")) return prevAmount;
-        return prevAmount + (prevAmount === "" ? "0." : ".");
+        if (prev.includes(".")) return prev;
+        return prev + (prev === "" ? "0." : ".");
       }
-
-      // Handle number input
-      const newAmount = prevAmount + value;
-
-      // Validate input
-      // Prevent leading zeros, limit to two decimal places
-      const formattedAmount = newAmount.replace(/^0+(?=\d)/, "");
-      const decimalParts = formattedAmount.split(".");
-
-      if (decimalParts.length > 1 && decimalParts[1].length > 2) {
-        return parseFloat(formattedAmount).toFixed(2);
+      const newVal = prev + value;
+      const formatted = newVal.replace(/^0+(?=\d)/, "");
+      const parts = formatted.split(".");
+      if (parts.length > 1 && parts[1].length > 2) {
+        return parseFloat(formatted).toFixed(2);
       }
-
-      return formattedAmount;
+      return formatted;
     });
   }, []);
 
+  // “Exact Payment” and “Round Up” buttons
   const handleExactPayment = () => {
     setAmountPaid(totalAfterAllDiscounts.toFixed(2));
   };
-
   const handleRoundUpPayment = () => {
     setAmountPaid(Math.ceil(totalAfterAllDiscounts).toFixed(2));
   };
 
+  // Discount changes
   const handleOrderDiscountChange = (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     const value = parseFloat(e.target.value) || 0;
-
     if (value > maxDiscountAllowed) {
-      toast.error(`❌ Error: Discount cannot exceed ${maxDiscountAllowed}%.`); // ✅ Show toast
-      setOrderDiscountPercentage(0); // ✅ Reset discount
+      toast.error(`❌ Error: Discount cannot exceed ${maxDiscountAllowed}%.`);
+      setOrderDiscountPercentage(0);
       return;
     }
-
     setOrderDiscountPercentage(value);
     setOrderDiscount(value);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+  // Format currency
+  const formatCurrency = (amt: number) =>
+    new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(amount);
-  };
+    }).format(amt);
 
-  // Calculation helpers
+  // Payment & change
   const amountPaidNum = parseFloat(amountPaid) || 0;
   const change = Math.max(0, amountPaidNum - totalAfterAllDiscounts);
   const remaining = Math.max(0, totalAfterAllDiscounts - amountPaidNum);
 
-  // Reset states when dialog opens/closes
+  // Reset states on open/close
   useEffect(() => {
     if (isOpen) {
       setAmountPaid("");
       setPaymentComplete(false);
       setShowSummary(false);
       setIsCalculatorOpen(false);
-      // Initialize order discount from store
       setOrderDiscountPercentage(storeOrderDiscount || 0);
     }
   }, [isOpen, storeOrderDiscount]);
 
   const handlePayment = async () => {
-
     const invoice = {
-      id: `invoice-${Date.now()}`, // Generate a unique ID
-      timestamp: Date.now(), // Set creation timestamp
-      // status: "Paid" as const, // Default status
+      id: `invoice-${Date.now()}`,
+      timestamp: Date.now(),
       customer: customer?.name || "Guest Customer",
       paymentMethod: selectedMethod,
       items: cart,
       total: cartTotal,
-      // discount: orderDiscountAmount,
-      // paymentMethod: selectedMethod,
     };
-
-    // if (customer) {
     try {
       await createInvoice(invoice);
-      console.log("invoice created: ", invoice);
       onClose();
     } catch (error) {
       console.log(error);
     }
   };
 
-  ////////>>>>cashmatic/////
-
-  // Cashmatic integration
-
-  const {
-    cashmaticState,
-    cashmaticActions,
-    setCashmaticMessage,
-    setPayStatus,
-  } = useCashmatic();
-
+  // Cashmatic
+  const { cashmaticState, cashmaticActions } = useCashmatic();
   const [cashmaticDialogOpen, setCashmaticDialogOpen] = useState(false);
 
   const handleCashmaticPayment = async () => {
@@ -227,24 +189,18 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
       cart
     );
   };
-
   const handleCancelCashmaticPayment = async () => {
     await cashmaticActions.cancelPayment();
   };
 
-  ////////<<<<cashmatic/////
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-5xl p-0 bg-gray-100 flex flex-col mx-auto h-auto overflow-auto">
-        {/* Add proper DialogHeader and DialogTitle for accessibility */}
         <DialogHeader className="sr-only">
           <DialogTitle>Payment</DialogTitle>
         </DialogHeader>
 
-        {/* Enhanced Header with 3-part layout */}
         <div className="bg-white px-4 py-3 border-b sticky top-0 z-10 flex items-center">
-          {/* Left: Customer info */}
           <div className="w-1/3 flex items-center">
             {customer?.customer_name && (
               <div className="flex items-center">
@@ -257,13 +213,9 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
               </div>
             )}
           </div>
-
-          {/* Center: Payment title */}
           <div className="w-1/3 flex justify-center">
             <h2 className="text-lg font-semibold text-gray-900">Payment</h2>
           </div>
-
-          {/* Right: Close button */}
           <div className="w-1/3 flex justify-end">
             <button
               onClick={onClose}
@@ -294,10 +246,10 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
               <PaymentMethods
                 selectedMethod={selectedMethod}
                 onSelectMethod={setSelectedMethod}
-                paymentMethods={payments}
+                paymentMethods={filteredPayments}
               />
 
-              {/* Order Discount Input - Hidden in Vertical Layout */}
+              {/* Order Discount Input (not visible in vertical layout) */}
               {!isVerticalLayout && (
                 <div className="bg-white rounded-xl p-3 border border-gray-200 shadow-sm">
                   <label className="block text-sm font-medium text-gray-700">
@@ -314,7 +266,7 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
                     }`}
                     placeholder={`Enter discount (Max: ${maxDiscountAllowed}%)`}
                     min="0"
-                    max={maxDiscountAllowed} // ✅ Restrict max input
+                    max={maxDiscountAllowed}
                     readOnly={!canEditAdditionalDiscount}
                   />
                 </div>
@@ -341,14 +293,14 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
             </div>
           </div>
 
-          {/* Complete Payment Button */}
+          {/* Complete Payment */}
           <div className="mt-4">
             {selectedMethod !== "cashmatic" ? (
               <Button
                 onClick={handlePayment}
                 className="w-full p-4 text-base rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-gray-300 transition-colors"
                 disabled={
-                  (selectedMethod != "cashmatic" &&
+                  (selectedMethod !== "cashmatic" &&
                     amountPaidNum < totalAfterAllDiscounts) ||
                   paymentComplete
                 }
@@ -367,7 +319,7 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
                 onClick={handleCashmaticPayment}
                 className="w-full p-4 text-base rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-gray-300 transition-colors"
                 disabled={
-                  (selectedMethod != "cashmatic" &&
+                  (selectedMethod !== "cashmatic" &&
                     amountPaidNum < totalAfterAllDiscounts) ||
                   paymentComplete
                 }
@@ -385,7 +337,7 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
         {showSummary && (
           <OrderSummary
             cart={cart}
-            cartTotal={validCartTotal}
+            cartTotal={cartTotal}
             orderDiscountPercentage={orderDiscountPercentage}
             orderDiscountAmount={orderDiscountAmount}
             itemDiscounts={itemDiscountAmount}
@@ -405,6 +357,8 @@ export function PaymentPage({ isOpen, onClose }: PaymentPageProps) {
           setIsCalculatorOpen(false);
         }}
       />
+
+      {/* Cashmatic Dialog */}
       <CashmaticDialog
         isOpen={cashmaticDialogOpen}
         status={cashmaticState.status}

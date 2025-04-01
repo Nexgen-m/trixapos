@@ -97,28 +97,41 @@ export function usePOSProfile() {
   }
 
   // Determine if there's an error in the API response itself
-  const apiError = !data?.message?.success ? data?.message?.error || "No POS profile found" : null;
+  const apiError = !data?.message?.success
+    ? data?.message?.error || "No POS profile found"
+    : null;
 
   const posProfile = data?.message?.success ? data?.message?.pos_profile : null;
 
+  const allowItemDiscount = Boolean(posProfile?.custom_allow_tem_discount);
+
   // Sync compact mode when profile data changes
   useEffect(() => {
-    if (posProfile) {  // Only check if profile exists
+    if (posProfile) {
+      // Only check if profile exists
       const isCompact = posProfile.custom_display_mode === "Compact Mode";
       syncCompactModeFromProfile(isCompact);
     }
   }, [posProfile, syncCompactModeFromProfile]);
-  
-  const canEditAdditionalDiscount = Boolean(posProfile?.allow_additional_discount);
+
+  const canEditAdditionalDiscount = Boolean(
+    posProfile?.custom_allow_user_to_edit_order_discount
+  );
   const maxDiscountAllowed = posProfile?.max_discount_percentage_allowed ?? 0;
   const canEditItemDiscount = Boolean(posProfile?.allow_discount_change);
   const canEditItemPrice = Boolean(posProfile?.allow_rate_change);
-  const enableCompactModeOption = Boolean(posProfile?.custom_enable_compact_mode_option);
+  const enableCompactModeOption = Boolean(
+    posProfile?.custom_enable_compact_mode_option
+  );
   const customDisplayMode = posProfile?.custom_display_mode || "Full Mode";
   const showSubcategories = Boolean(posProfile?.custom_show_subcategories);
-  const AddNewCustomer = Boolean(posProfile?.custom_enable_use_add_new_customer);
+  const AddNewCustomer = Boolean(
+    posProfile?.custom_enable_use_add_new_customer
+  );
   const FullScreenMode = Boolean(posProfile?.custom_enable_fullscreen_mode);
-  const UserAccessFullScreenMode = Boolean(posProfile?.custom_enable_user_choose_full_screen_mode);
+  const UserAccessFullScreenMode = Boolean(
+    posProfile?.custom_enable_user_choose_full_screen_mode
+  );
 
   // Function to update the custom_display_mode
   const updateCustomDisplayMode = async (displayMode: string) => {
@@ -140,7 +153,10 @@ export function usePOSProfile() {
         // Revalidate the profile data
         mutate();
       } else {
-        console.error("❌ Failed to update custom_display_mode:", response.message?.error);
+        console.error(
+          "❌ Failed to update custom_display_mode:",
+          response.message?.error
+        );
       }
 
       return response;
@@ -159,10 +175,16 @@ export function usePOSProfile() {
     enableCompactModeOption,
     customDisplayMode,
     updateCustomDisplayMode,
-    custom_enable_recent_orders: Boolean(posProfile?.custom_enable_recent_orders),
-    custom_enable_form_view: Boolean(posProfile?.custom_enable_form_view),
-    custom_enable_save_as_draft: Boolean(posProfile?.custom_enable_save_as_draft),
-    custom_enable_display_settings: Boolean(posProfile?.custom_enable_display_settings),
+    custom_enable_recent_orders: Boolean(
+      posProfile?.custom_enable_recent_orders
+    ),
+    custom_show_form_view: Boolean(posProfile?.custom_show_form_view),
+    custom_enable_save_as_draft: Boolean(
+      posProfile?.custom_enable_save_as_draft
+    ),
+    custom_enable_display_settings: Boolean(
+      posProfile?.custom_enable_display_settings
+    ),
     custom_enable_close_pos: Boolean(posProfile?.custom_enable_close_pos),
     showSubcategories,
     AddNewCustomer,
@@ -172,6 +194,7 @@ export function usePOSProfile() {
     defaultPaymentMethod: posProfile?.default_payment_method || "cash",
     isLoading,
     isUpdating,
+    allowItemDiscount,
     error: error || apiError,
     mutate, // Expose mutate for manual revalidation
   };

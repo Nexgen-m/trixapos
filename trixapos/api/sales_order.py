@@ -97,7 +97,7 @@ def get_draft_sales_orders():
             "Sales Order",
             filters={"docstatus": 0,
                      "status": ["!=", "Cancelled"]},
-            fields=["name", "creation", "total", "custom_note", "customer"]
+            fields=["name", "creation", "total", "custom_note", "customer_note", "customer"]
         )
         
 

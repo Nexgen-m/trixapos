@@ -18,6 +18,7 @@ import { createDraftOrder } from "@/lib/createDraftOrder";
 import { fetchWithCredentials } from "@/lib/fetchWithCredentials";
 import { postWithCredentials } from "@/lib/postWithCredentials";
 import { createInvoice } from "@/lib/createInvoice";
+import { useCashmatic } from "../fetchers/useCashmatic";
 
 // Define a new type for orders
 interface Order {
@@ -72,6 +73,7 @@ interface POSStore {
   isFullScreenMode: boolean; // Full screen mode
   invoices: Invoice[]; // List of invoices
   currentInvoice: Invoice | null; // Currently selected invoice
+  canProvideCash: boolean; // Cashmatic availability
 
   initializeHeldOrders: () => Promise<void>;
   // Order-related functions
@@ -93,6 +95,11 @@ interface POSStore {
   getInvoices: () => Promise<Invoice[]>;
   loadInvoice: (id: string) => void;
   syncInvoices: () => Promise<void>; // Sync offline invoices when online
+  printInvoice: (id: string) => Promise<void>; // Print invoice function
+
+  //cashmatic
+  checkCanProvideCash: (cashmaticActions: any) => Promise<{ canProvide: boolean; denominations: { denomination: number; quantity: number }[] }>; // Check if cash is available
+  setCashLevels: (denominations: { denomination: number; quantity: number }[]) => Promise<boolean>; // Update cash denominations
 
   // New function for syncing offline orders when back online
   syncOfflineOrders: () => Promise<void>;
@@ -134,12 +141,14 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     localStorage.getItem("isVerticalLayout") || "false"
   ),
   isCompactMode: false,
-  isFullScreenMode: false,
+  // isFullScreenMode: false,
+  isFullScreenMode: JSON.parse(localStorage.getItem("fullScreenMode") || "false"),
   heldOrders: [],
   completedOrders: [],
   rejectedOrders: [],
   invoices: [],
   currentInvoice: null,
+  canProvideCash: false,
 
   syncCompactModeFromProfile: (isCompact) => {
     localStorage.setItem("compactMode", JSON.stringify(isCompact));
@@ -289,7 +298,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
       try {
         // (1) Basic fields from resource list
         const mainResponse = await fetchWithCredentials(
-          `http://38.242.204.206:8001/api/resource/Sales Order?fields=["name","customer_name","total","creation"]&filters=[["docstatus","=","0"]]`
+          `http://38.242.204.206:8001/api/resource/Sales Order?fields=["name","customer_name","total","creation", "custom_note"]&filters=[["docstatus","=","0"]]`
         );
 
         if (!Array.isArray(mainResponse.data)) {
@@ -309,16 +318,21 @@ export const usePOSStore = create<POSStore>((set, get) => ({
             } catch (err) {
               console.error("Failed to fetch items for", doc.name, err);
             }
+            const net = items.reduce((sum, child) => {
+              const lineSubtotal = (child.rate || 0) * (child.qty || 0);
+              const discountAmount = lineSubtotal * ((child.discount_percentage || 0) / 100);
+              return sum + (lineSubtotal - discountAmount);
+            }, 0);
 
             return {
               id: doc.name,
               timestamp: new Date(doc.creation).getTime(),
-              total: doc.total,
+              total: net,
+              note: doc.custom_note || "",
               customer: doc.customer_name,
               items: items.map((child: any) => ({
                 item_code: child.item_code,
                 item_name: child.item_name,
-                // Make sure we provide the field your CartItem expects:
                 price_list_rate: child.rate || 0,
                 qty: child.qty || 1,
                 discount: child.discount_percentage || 0,
@@ -470,10 +484,14 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     window.location.reload();
   },
 
-  // Set full screen mode
-  setIsFullScreenMode: (value: boolean) => {
-    set({ isFullScreenMode: value });
-  },
+
+  // In your usePOSStore.ts
+setIsFullScreenMode: (value: boolean) => {
+  set({ isFullScreenMode: value });
+  localStorage.setItem('fullScreenMode', String(value));
+},
+
+  
 
   // Set compact mode
   setIsCompactMode: (value) => {
@@ -599,10 +617,12 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     const savedCart = localStorage.getItem("cart");
     const compactMode = localStorage.getItem("compactMode") === "true";
     const verticalLayout = localStorage.getItem("isVerticalLayout") === "true";
+    const fullScreenMode = localStorage.getItem('fullScreenMode') === 'true';
     set(() => ({
       cart: savedCart ? JSON.parse(savedCart) : [],
       isCompactMode: compactMode,
       isVerticalLayout: verticalLayout,
+      isFullScreenMode: fullScreenMode,
       total: savedCart
         ? JSON.parse(savedCart).reduce(
             (sum: number, item: ExtendedCartItem) => {
@@ -741,7 +761,7 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     if (navigator.onLine) {
       try {
         const response = await fetch(
-          `http://38.242.204.206:8001/api/resource/Sales Invoice?fields=["name","customer_name","grand_total","posting_date","posting_time","status","items"]&expand=items`,
+          `http://38.242.204.206:8001/api/resource/Sales Invoice?fields=["name","customer_name","grand_total","posting_date","posting_time","status"]`,
           {
             method: "GET",
             credentials: "include",
@@ -750,7 +770,10 @@ export const usePOSStore = create<POSStore>((set, get) => ({
             },
           }
         );
+
         const responseData = await response.json();
+        responseData.data.sort((a: any, b: any) => b.name.localeCompare(a.name));
+        // const responseData = await response.json();
         ////
         const fetchedOrders = await Promise.all(
           responseData.data.map(async (inv: any) => {
@@ -768,25 +791,25 @@ export const usePOSStore = create<POSStore>((set, get) => ({
             return {
               id: inv.name,
               timestamp:
-                inv.posting_date &&
-                inv.posting_time &&
-                !isNaN(
-                  new Date(`${inv.posting_date}T${inv.posting_time}`).getTime()
-                )
-                  ? new Date(
-                      `${inv.posting_date}T${inv.posting_time}`
-                    ).getTime()
-                  : new Date().getTime(), // Handle missing or invalid posting_date or posting_time
-              status: inv.status || "Unknown", // Default status if undefined
+              inv.posting_date &&
+              inv.posting_time &&
+              !isNaN(
+                new Date(`${inv.posting_date}T${inv.posting_time}`).getTime()
+              )
+                ? new Date(
+                  `${inv.posting_date}T${inv.posting_time}`
+                ).getTime()
+                : new Date("1970-01-01T00:00:00").getTime(), // Default to a known invalid date
+              status: inv.status || "Draft", // Default status if undefined
               total: inv.grand_total || 0, // Default total if undefined
               customer: inv.customer_name,
               items: items.map((child: any) => ({
-                item_code: child.item_code,
-                item_name: child.item_name,
-                // Make sure we provide the field your CartItem expects:
-                price_list_rate: child.rate || 0,
-                qty: child.qty || 1,
-                discount: child.discount_percentage || 0,
+              item_code: child.item_code,
+              item_name: child.item_name,
+              // Make sure we provide the field your CartItem expects:
+              price_list_rate: child.rate || 0,
+              qty: child.qty || 1,
+              discount: child.discount_percentage || 0,
               })),
             };
           })
@@ -823,11 +846,12 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     const offlineInvoices = await getInvoicesOffline();
     for (const invoice of offlineInvoices) {
       try {
-        const response = await fetchFromFrappe(
+        const response = await postWithCredentials(
           "trixapos.api.sales_invoice.create_sales_invoice",
-          {
-            args: invoice,
-          }
+          // {
+            { data: JSON.stringify(invoice) }
+            // args: invoice,
+          // }
         );
         if (response.success) {
           await deleteInvoiceOffline(invoice.id);
@@ -841,4 +865,128 @@ export const usePOSStore = create<POSStore>((set, get) => ({
     }
     await get().getInvoices();
   },
+
+  printInvoice: async (invoiceId: string) => {
+    if (!invoiceId) {
+      toast.error("Invoice ID is required to print.");
+      return;
+    }
+  
+    try {
+      // Fetch the PDF as a blob
+      const blob = await fetchWithCredentials(
+        `http://38.242.204.206:8001/api/method/trixapos.api.sales_invoice.download_invoice_pdf`,
+        { invoice_name: invoiceId },
+        { responseType: "blob" } // Specify that the response should be treated as binary data
+      );
+  
+      // Create a Blob URL for the file
+      const url = window.URL.createObjectURL(blob);
+  
+      // Trigger the download
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${invoiceId}.pdf`; // Name for the downloaded file
+      link.click();
+  
+      // Clean up the Blob URL
+      window.URL.revokeObjectURL(url);
+      toast.success(`Invoice ${invoiceId} printed successfully!`);
+    } catch (error) {
+      console.error("Error printing invoice:", error);
+      toast.error("Failed to print invoice. Please try again later.");
+    }
+  },
+
+
+  checkCanProvideCash: async (cashmaticActions: any): Promise<{ canProvide: boolean; denominations: { denomination: number; quantity: number }[] }> => {
+    try {
+      try {
+        await cashmaticActions.checkCashmatic(100);
+      } catch (error) {
+        console.log("Error in checkChangeBeforePayment: ", error);
+      }
+      // Fetch cashmatic balance info from the Frappe API 
+      const response = await fetchWithCredentials(`http://38.242.204.206:8001/api/resource/Cashmatic Denominations?fields=["denomination","quantity"]`);
+      console.log("Cashmatic response: ", response.data);
+      const denominations = response.data;
+      let canProvideCash = true;
+      for (const denomination of denominations) {
+        if (denomination.quantity < 5) {
+          canProvideCash = false;
+          // set({ canProvideCash: false });
+          toast.error("Cashmatic is low on cash. Please refill.");
+          break;
+        }
+      }
+      set({ canProvideCash: canProvideCash });
+      return { canProvide: canProvideCash, denominations };
+    } catch (error) {
+      console.error("Error in checkCanProvideCash:", error);
+      toast.error("Failed to fetch cashmatic balance. Please try again.");
+      return { canProvide: false, denominations: [] };
+    }
+  },
+
+  setCashLevels: async (denominations: any) => { 
+    try {
+      // Send the denominations as payload to the API
+      const response = await postWithCredentials("trixapos.api.cashmatic.set_cashmatic_denominations", {
+        data: JSON.stringify(denominations),
+      }); 
+
+      // if (response.success) {
+        toast.success("Denominations updated successfully!");
+        // set({ canProvideCash: true });
+        return true;
+      // } else {
+        // throw new Error(response.error || "Failed to update cashmatic denominations.");
+      // }
+    } catch (error) {
+      console.error("Error in updateDenominations:", error);
+      toast.error("Failed to update cashmatic denominations. Please try again.");
+      return false;
+    }
+  },
+  //   try {
+  //     // Fetch cashmatic balance info from the Frappe API
+  //     const response = await fetchWithCredentials("trixapos.api.cashmatic.get_cashmatic_denominations", {});
+  //     if (response.success && response.data) {
+  //       const { denominations } = response.data;
+  //       let canProvideCash = true;
+  //       for(const denomination of denominations) {
+  //         if (denomination.quantity < 5) {
+  //           canProvideCash = false;
+  //           break;
+  //           // const availableChange = denomination.available_change;
+  //           // Assuming you want to check if the available change is sufficient for a specific amount
+  //           // const amount = 100; // Replace with your desired amount
+  //           // return availableChange >= amount;
+  //         }
+  //       }
+  //       return canProvideCash;
+  //       // Check if the available change is sufficient for the requested amount
+  //       // return availableChange >= amount;
+  //     } else {
+  //       throw new Error(response.error || "Failed to fetch cashmatic balance.");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error in canProvideChange:", error);
+  //     toast.error("Failed to fetch cashmatic balance. Please try again.");
+  //     return false;
+  //   }
+  // },
+
+
+  // clearCart: () => {
+  //   set({
+  //     cart: [],
+  //     customer: null,
+  //     orderDiscount: 0,
+  //     selectedCategory: "",
+  //     total: 0,
+  //   });
+  //   localStorage.removeItem("cart");
+  //   toast.success("Cart cleared successfully.");
+  // },
 }));

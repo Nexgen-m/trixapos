@@ -45,7 +45,10 @@ export function CartItem({ item }: CartItemProps) {
             )}
           </div>
           <div className="min-w-0">
-            <p className="text-sm text-gray-200 break-words">{item.item_name}</p> {/* ✅ Wrap Item Name */}
+            <p className="text-sm text-gray-200 break-words">
+              {item.item_name}
+            </p>{" "}
+            {/* ✅ Wrap Item Name */}
           </div>
         </div>
 
@@ -76,8 +79,10 @@ export function CartItem({ item }: CartItemProps) {
           {(item.discount || 0) > 0 && (
             <div className="flex items-center text-xs text-red-400">
               <PercentIcon className="w-3 h-3 mr-1" />
-              <span>-${discountAmount.toFixed(2)} ({item.discount}% off)</span>
-              </div>
+              <span>
+                -${discountAmount.toFixed(2)} ({item.discount}% off)
+              </span>
+            </div>
           )}
         </div>
 
@@ -91,7 +96,7 @@ export function CartItem({ item }: CartItemProps) {
           </CartItemEditDialog>
 
           {/* Remove Button */}
-          <button 
+          <button
             onClick={() => removeFromCart(item.item_code)}
             className="p-1 rounded hover:bg-red-900/30 text-red-400 hover:text-red-300 group-hover:opacity-100 transition-opacity"
           >

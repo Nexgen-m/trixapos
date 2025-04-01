@@ -16,6 +16,7 @@ interface CashmaticDialogProps {
   inserted: number;
   requested: number;
   returnedAmount: number;
+  resetCashmaticState: () => void;
   onClose: () => void;
   onCancel: () => void;
 }
@@ -29,6 +30,7 @@ export const CashmaticDialog = ({
   requested,
   returnedAmount,
   onClose,
+  resetCashmaticState,
   onCancel,
 }: CashmaticDialogProps) => {
   const getStatusIcon = () => {
@@ -76,8 +78,11 @@ export const CashmaticDialog = ({
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (isOpen && status.includes("Completed")) {
-      timer = setTimeout(() => onClose(), 7000);
+    if (isOpen && (status.includes("Completed") || status.includes("Cancelled"))) {
+      timer = setTimeout(() => {
+        onClose()
+        resetCashmaticState();
+      }, 7000);
     }
     return () => clearTimeout(timer);
   }, [isOpen, status, onClose]);

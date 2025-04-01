@@ -54,6 +54,15 @@ export const deleteInvoiceOffline = async (id: string): Promise<void> => {
   await db.delete("offline_invoices", id);
 };
 
+export const clearAllOfflineInvoices = async (): Promise<void> => {
+  // Clear all invoices from IndexedDB
+  const db = await dbPromise;
+  const transaction = db.transaction("offline_invoices", "readwrite");
+  const store = transaction.objectStore("offline_invoices");
+  await store.clear();
+  await transaction.done;
+};
+
 export async function getInvoicesOffline() {
   // Retrieve from IndexedDB
   const db = await dbPromise;

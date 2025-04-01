@@ -77,7 +77,13 @@ def create_sales_invoice(data):
             "grand_total": invoice_data.get("total"),
             # "payment_method": invoice_data.get("paymentMethod", "Cash"),  # Default payment method
             # "status": "Paid",  # Explicitly set status to "Paid"
-            # "is_pos": True
+            "is_pos": True,
+            "payments": [
+                {
+                    "mode_of_payment": invoice_data.get("payment_method", "Cash"),  # Default to "Cash"
+                    "amount": invoice_data.get("total")
+                }
+            ]
         })
 
         # Insert the document into the database.
@@ -86,7 +92,7 @@ def create_sales_invoice(data):
         # Submit the Sales Invoice to change its state from Draft to Submitted.
         sales_invoice.submit()
         # Set the status to "Paid" after submission.
-        sales_invoice.db_set("status", "Paid")
+        # sales_invoice.db_set("status", "Paid")
         
         # Commit the transaction to the database.
         frappe.db.commit()
@@ -146,3 +152,21 @@ def get_all_sales_invoices():
     except Exception as e:
         frappe.log_error(title="get_all_sales_invoices Error", message=str(e))
         return {"success": False, "error": str(e)}
+
+
+import frappe
+from frappe.utils.pdf import get_pdf
+
+@frappe.whitelist()
+def download_invoice_pdf(invoice_name):
+    # Fetch the invoice document
+    invoice_doc = frappe.get_doc("Sales Invoice", invoice_name)
+
+    # Get the printable content in PDF format
+    pdf_content = get_pdf(frappe.get_print(invoice_doc.doctype, invoice_doc.name, print_format=None))
+
+    # Create a file in the File System
+    file_name = f"{invoice_name}.pdf"
+    frappe.response['filename'] = file_name
+    frappe.response['filecontent'] = pdf_content
+    frappe.response['type'] = 'download'

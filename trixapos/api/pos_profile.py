@@ -26,14 +26,14 @@ def get_pos_profile():
                                       fields=[
                                           "name", 
                                           "disabled", 
-                                          "allow_user_to_edit_additional_discount", 
+                                          "custom_allow_user_to_edit_order_discount", 
                                           "max_discount_percentage_allowed",
                                           "allow_discount_change",
                                           "allow_rate_change",
                                           "custom_enable_compact_mode_option",
                                           "custom_display_mode",
                                           "custom_enable_recent_orders",
-                                          "custom_enable_form_view",
+                                          "custom_show_form_view",
                                           "custom_enable_save_as_draft",
                                           "custom_enable_display_settings",
                                           "custom_enable_close_pos",
@@ -41,6 +41,7 @@ def get_pos_profile():
                                           "custom_enable_use_add_new_customer",
                                           "custom_enable_fullscreen_mode",
                                           "custom_enable_user_choose_full_screen_mode",
+                                          "custom_allow_item_discount",
                                       ])
 
         if not pos_profiles:
@@ -77,14 +78,14 @@ def get_pos_profile():
             "pos_profile": {
                 "name": profile_data["name"],
                 "disabled": profile_data.get("disabled", 0),
-                "allow_additional_discount": profile_data.get("allow_user_to_edit_additional_discount", False),
+                "custom_allow_user_to_edit_order_discount": profile_data.get("custom_allow_user_to_edit_order_discount", False),
                 "max_discount_percentage_allowed": profile_data.get("max_discount_percentage_allowed", 0),
                 "allow_discount_change": profile_data.get("allow_discount_change", False),
                 "allow_rate_change": profile_data.get("allow_rate_change", False),
                 "custom_enable_compact_mode_option": profile_data.get("custom_enable_compact_mode_option", False),
                 "custom_display_mode": profile_data.get("custom_display_mode", "Full Mode"),
                 "custom_enable_recent_orders": profile_data.get("custom_enable_recent_orders", False),
-                "custom_enable_form_view": profile_data.get("custom_enable_form_view", False),
+                "custom_show_form_view": profile_data.get("custom_show_form_view", False),
                 "custom_enable_save_as_draft": profile_data.get("custom_enable_save_as_draft", False),
                 "custom_enable_display_settings": profile_data.get("custom_enable_display_settings", False),
                 "custom_enable_close_pos": profile_data.get("custom_enable_close_pos", False),
@@ -95,6 +96,8 @@ def get_pos_profile():
                 "custom_enable_user_choose_full_screen_mode": profile_data.get("custom_enable_user_choose_full_screen_mode", False),  # Add this field
                 "payments": processed_payments,
                 "default_payment_method": default_payment,
+                "custom_allow_item_discount": profile_data.get("custom_allow_item_discount", 0),
+                
             },
         }
 

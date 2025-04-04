@@ -12,7 +12,7 @@ export function LoginScreen() {
   const location = useLocation();
 
   // Get the intended destination from location state, or default to /trixapos
-  const from = (location.state as any)?.from?.pathname || "/trixapos";
+  const from = (location.state as any)?.from?.pathname || "/trixapos/Modules";
 
   useEffect(() => {
     if (!isLoading && currentUser) {

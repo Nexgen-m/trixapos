@@ -81,6 +81,7 @@ import { POSProfileCheck } from "./components/POSProfileCheck";
 import { AuthGuard } from "./components/AuthGuard";
 import { MainLayout } from "./components/MainLayout";
 import { OrderScreen } from "./screens/OrderScreen";
+import ModulesScreen from "./screens/ModulesScreen";
 
 export const router = createBrowserRouter([
   {
@@ -126,6 +127,16 @@ export const router = createBrowserRouter([
   {
     path: "/trixapos/OrderScreen",
     element: <OrderScreen />,
+  },
+  {
+    path: "/trixapos/Modules",
+    element: (
+      <AuthGuard>
+        <POSProfileCheck>
+          <ModulesScreen />
+        </POSProfileCheck>
+      </AuthGuard>
+    ),
   },
 
   {

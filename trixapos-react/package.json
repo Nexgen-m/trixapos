@@ -31,6 +31,7 @@
     "react": "18",
     "react-badge": "^1.0.0",
     "react-dom": "18",
+    "react-full-screen": "^1.1.1",
     "react-loading-skeleton": "^3.5.0",
     "react-router-dom": "^6.22.2",
     "react-select": "^5.10.0",

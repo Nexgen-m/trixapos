@@ -14,6 +14,7 @@ export interface Item {
 }
 
 export interface Customer {
+  barcode: string;
   name: string;
   customer_name: string;
   territory?: string;
